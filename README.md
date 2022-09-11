@@ -43,6 +43,14 @@ from Furnace import Furnace
 env = Furnace()
 env.reset()
 ```
+* loading the environment config variables from a cfg file:
+```python
+import json  # for reading the config dict from a config file.
+from Furnace import Furnace
+env_config = json.load(open('./env_config.cfg'))
+env = Furnace(env_config=env_config)
+env.reset()
+```
 * with custom values for the parameters as a dictionary:
 ```python
 from Furnace import Furnace
@@ -64,14 +72,6 @@ env_config = {"N": 2100,
              "energy_cost_per_step": 0.0,
              "verbose": "False"
              }
-env = Furnace(env_config=env_config)
-env.reset()
-```
-* loading the environment config variables from a cfg file:
-```python
-import json  # for reading the config
-from Furnace import Furnace
-env_config = json.load(open('./env_config.cfg'))
 env = Furnace(env_config=env_config)
 env.reset()
 ```
