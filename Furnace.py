@@ -228,7 +228,7 @@ class Furnace(gym.Env):
         obs['timestep'] = [np.float(self.steps) / self.N]
         if self.steps == self.N:
             done = True
-            reward, energy_cost = self.calculate_reward(new_state=obs)
+            reward, energy_cost = self._calculate_reward(new_state=obs)
             self.state = obs
             return obs, reward, done, {}
         # --------------------------------------
@@ -242,7 +242,7 @@ class Furnace(gym.Env):
         # stop the process, freeze!
         if action == 3:
             done = True
-            reward, energy_cost = self.calculate_reward(new_state=obs)
+            reward, energy_cost = self._calculate_reward(new_state=obs)
             self.state = obs
             return obs, reward, done, {}
 
@@ -254,7 +254,7 @@ class Furnace(gym.Env):
                 obs['temperature'] = self.observation_space['temperature'].low
                 if self.termination_temperature_criterion:
                     done = True
-                    reward, energy_cost = self.calculate_reward(new_state=obs)
+                    reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
                     return obs, reward, done, {}
 
@@ -266,7 +266,7 @@ class Furnace(gym.Env):
                 obs['temperature'] = self.observation_space['temperature'].high
                 if self.termination_temperature_criterion:
                     done = True
-                    reward, energy_cost = self.calculate_reward(new_state=obs)
+                    reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
                     return obs, reward, done, {}
 
@@ -286,11 +286,11 @@ class Furnace(gym.Env):
             else:
                 done = False
 
-        reward, energy_cost = self.calculate_reward(new_state=obs)
+        reward, energy_cost = self._calculate_reward(new_state=obs)
         self.state = obs
         return obs, reward, done, {"g2": g2, "density": np.mean(phi), 'energy_cost': energy_cost}
 
-    def calculate_reward(self, new_state: Dict) -> Tuple[float, float]:
+    def _calculate_reward(self, new_state: Dict) -> Tuple[float, float]:
         """
         This function calculates the immediate reward which should depend on the changes of the structure.
 
@@ -306,7 +306,7 @@ class Furnace(gym.Env):
             translated_to_center_lst = self._translate_to_the_center(shifted_phi)
             for phi in translated_to_center_lst:
                 centered_phi_lst.append(phi)
-        IoU_lst = [self.IoU(phi) for phi in centered_phi_lst]
+        IoU_lst = [self._IoU(phi) for phi in centered_phi_lst]
         new_max_IoU = np.max(IoU_lst)
 
         # old overlap
@@ -317,7 +317,7 @@ class Furnace(gym.Env):
             translated_to_center_lst = self._translate_to_the_center(shifted_phi)
             for phi in translated_to_center_lst:
                 centered_phi_lst.append(phi)
-        IoU_lst = [self.IoU(phi) for phi in centered_phi_lst]
+        IoU_lst = [self._IoU(phi) for phi in centered_phi_lst]
         old_max_IoU = np.max(IoU_lst)
 
         reward = new_max_IoU - old_max_IoU
@@ -375,7 +375,7 @@ class Furnace(gym.Env):
 
         return [current_PF_0, current_PF_1, current_PF_2, current_PF_3]
 
-    def IoU(self, image: np.ndarray) -> float:
+    def _IoU(self, image: np.ndarray) -> float:
         """
         Returns the (modified) overlap of image and the self.desired_PF.
         """
@@ -393,7 +393,7 @@ class Furnace(gym.Env):
         
         return corrected_overlap
 
-    def set_pf(self, pf: np.ndarray) -> Dict:
+    def _set_pf(self, pf: np.ndarray) -> Dict:
         """
         Sets the desired PF.
         
