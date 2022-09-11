@@ -1,8 +1,16 @@
 # A Furnace Environment
 A furnace environment compatible with OpenAI Gym is developed here.
 
+## Introduction to ```Furnace```
+### State Space
+tbd
+### Action Space
+tbd
+### Reward
+tbd
+### Termination
+tbd
 ## How to use it?
-
 ### Installation 
 * First create a new virtual environment or activate an old one with python3.9 (here we create a new one):
 ```commandline
@@ -67,3 +75,6 @@ env_config = json.load(open('./env_config.cfg'))
 env = Furnace(env_config=env_config)
 env.reset()
 ```
+
+## Configuring ```Furnace```
+tbd.
