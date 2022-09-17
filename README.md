@@ -3,8 +3,7 @@ A furnace environment compatible with OpenAI Gym is developed here.
 
 ## Introduction to ```Furnace```
 
-The environment designed to experiment with heat treatment in material science. The physics behind the environment is a 2D binary Allen-Cahn phase field model 
-
+The environment designed to experiment with heat treatment in material science. The physics behind the environment is a 2D binary Allen-Cahn phase field model.
      
 ### State Space
 The state includes:
@@ -109,7 +108,7 @@ Important configuration parameters for the environment are the followings:
 * ```desired_volume_fraction```: the target volume fraction of phase 1; the target PF is a circle with this volume fraction,
 * ```temperature change per step```: the temperature change in case of actions 0 and 2,
 * ```number of PF updates per step```: the number of PF updates for each environment step,
-* ```termination_change_criterion```: if the (absolute) PF change is smaller than this value the process is terminated; to disable  this condition set it to zero.,
+* ```termination_change_criterion```: if the (absolute) PF change is smaller than this value the process is terminated; to disable  this condition set it to zero,
 * ```termination_temperature_criterion```: whether to terminate the process when the agent brings the temperature out of the [Tmin, Tmax] range; setting it to False keeps the temperature at the boundary value and does not terminate the process,
 * ```stop_action```: whether to have the termination action or not,
 * ```energy_cost_per_step```: a factor which is multiplied by the difference between the temperature of the furnace and the temperature of the ambient; the larger this value the more expensive would be to run the furnace at higher temperatures; to remove the energy cost from optimization set this value to 0.
@@ -118,3 +117,5 @@ Important configuration parameters for the environment are the followings:
 * ```initial_PF_variation```: the variation of the average PF around 0.5 at reset,
 * ```G_list```: values related to the relative stability of different phases, e.g. "1.0, 1.0",
 * ```shift_PF```: the initial shift of PF values, for easier learning set it to -0.5,
+
+Note that logical conditions and lists are inputed as strings with double quatations, like "False" (not False), and "1.0, 2.0" (not [1.0, 2.0]). Sooorrry! 
