@@ -28,10 +28,10 @@ The reward at each step shows the change between the "similarity" measured at th
 ### Termination
 The process is terminated under the following conditions which are all configurable (see configuration subsection): 
 
-* Reach the maximum number of allowed steps, 
-* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored). 
-* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds. 
-* If the action 3 is chosen.
+* Reach the maximum number of allowed steps, 
+* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored). 
+* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds. 
+* If the action 3 is chosen.
 
 ## How to use it?
 ### Installation 
