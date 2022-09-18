@@ -3,6 +3,9 @@ message: "If you use this software, please cite it as below."
 authors:
 - family-names: "SIBONI"
   given-names: "NIMA"
+- family-names: "REZAEI MIANROODI"
+  given-names: "JABER"
+
 title: "Furnace"
 version: 1.0.0
 date-released: 2022-09-18
