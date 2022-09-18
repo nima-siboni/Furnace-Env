@@ -113,7 +113,7 @@ Important configuration parameters for the environment are the followings:
 * ```stop_action```: whether to have the termination action or not,
 * ```energy_cost_per_step```: a factor which is multiplied by the difference between the temperature of the furnace and the temperature of the ambient; the larger this value the more expensive would be to run the furnace at higher temperatures; to remove the energy cost from optimization set this value to 0.
 * ```mobility_type```: "const", "exp", or "linear"; determines how the mobility changes with temperature 
-* ```gamma```: related to surface tension,
+* ```gamma```: a factor which is multiplied by the interface energy (just for reporting), 
 * ```initial_PF_variation```: the variation of the average PF around 0.5 at reset,
 * ```G_list```: values related to the relative stability of different phases, e.g. "1.0, 1.0",
 * ```shift_PF```: the initial shift of PF values, for easier learning set it to -0.5,
