@@ -49,15 +49,15 @@ def Calc_dfdPhi(Phi: np.ndarray, Temperature: float, G_list: List, Tmax: float=1
     :param Tmax: The maximum temperature (in C)
     :return: the derivative of the Gibbs energy with respect to the order parameter
     """
-    G1 = G_list[0] * (Temperature/Tmax)
+    G1 = G_list[0] * (Temperature / Tmax)
     G2 = G_list[1] - G1
     c = 50
     d = 0
-    e = G1  # this is not used?
+    # e = G1  this is not used in force calculation
     a = -2*c - 3*(G2-G1-c)
     b = G2-G1-c-a
     # f(Phi) = a*Phi**4 + b*Phi**3 + c*Phi**2 + d*x + e
-    return 4*a*Phi**3 + 3*b*Phi**2 + 2*c*Phi + d
+    return 4 * a * Phi**3 + 3 * b * Phi**2 + 2 * c * Phi + d
 
 
 def calc_mobility(mobility_type: str, mu_0: float, Temperature: float, T_max: float, T_min: float):
