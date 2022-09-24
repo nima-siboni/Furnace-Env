@@ -10,9 +10,9 @@ The state includes:
 * Timestep: a scalar indicating the number of steps up to now,
 * Temperature: the current temperature, 
 * Phase Field: 2D field.
-
 Starting State: timestep is set to zero, temperature is set at the middle of the admissible range, and the PF at each point is set randomly to a value around 0.5 with a given tolerance.
               
+         ![](./statics/sample.png)
 ### Action Space
 The actions are for temperature regulation or process termination:
 
