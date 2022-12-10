@@ -105,7 +105,8 @@ class Furnace(gym.Env):
         self.termination_change_criterion = env_config['termination_change_criterion']
         self.termination_temperature_criterion = env_config['termination_temperature_criterion']
         self.mobility_type = env_config['mobility_type']
-        self.G_list = np.fromstring(env_config["G_list"], dtype=float, sep=',')
+        self.G_list = np.array(
+            [float(item) for item in env_config["G_list"].split(",")])
         if 'shift_PF' in env_config:
             self.shift_PF = env_config['shift_PF']
         else:
