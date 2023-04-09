@@ -99,7 +99,7 @@ class Furnace(gym.Env):
         self.min_temperature = env_config['minimum temperature']
         self.max_temperature = env_config['maximum temperature']
         self.desired_volume_fraction = env_config['desired_volume_fraction']
-        self.delta_T_not_scaled = np.float(env_config['temperature change per step'])
+        self.delta_T_not_scaled = float(env_config['temperature change per step'])
         self.nr_pf_updates_per_step = env_config['number of PF updates per step']
         self.gamma = env_config['gamma']
         self.termination_change_criterion = env_config['termination_change_criterion']
@@ -141,9 +141,10 @@ class Furnace(gym.Env):
         # In all the observation values we have the scaled values.
 
         self.observation_space = spaces.Dict({
-                'timestep': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float),
-                'temperature': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float),
-                'PF': spaces.Box(low=self.shift_PF, high=1 + self.shift_PF, shape=(self.L, self.L, 1), dtype=np.float)
+                'timestep': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float64),
+                'temperature': spaces.Box(low=0, high=1, shape=(1,), dtype=np.float64),
+                'PF': spaces.Box(low=self.shift_PF, high=1 + self.shift_PF,
+                                 shape=(self.L, self.L, 1), dtype=np.float64)
             }
         )
 
@@ -226,7 +227,7 @@ class Furnace(gym.Env):
 
         # 0 -- increase the time-step
         self.steps += 1
-        obs['timestep'] = [np.float(self.steps) / self.N]
+        obs['timestep'] = [np.float64(self.steps) / self.N]
         if self.steps == self.N:
             done = True
             reward, energy_cost = self._calculate_reward(new_state=obs)
