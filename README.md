@@ -8,7 +8,7 @@ The environment designed to experiment with heat treatment in material sc
 ### State Space
 The state includes:
 * Timestep: a scalar indicating the number of steps up to now,
-* Temperature: the current temperature, 
+* Temperature: the current temperature,
 * Phase Field: 2D field.
 Starting State: timestep is set to zero, temperature is set at the middle of the admissible range, and the PF at each point is set randomly to a value around 0.5 with a given tolerance.
               
@@ -16,24 +16,24 @@ Starting State: timestep is set to zero, temperature is set at the middle of t
 ### Action Space
 The actions are for temperature regulation or process termination:
 
-* Action 0: reduce the temperature 
-* Action 1: no change the temperature 
-* Action 2: increase the temperature 
-* Action 3: stop the process 
-  
+* Action 0: reduce the temperature
+* Action 1: no change the temperature
+* Action 2: increase the temperature
+* Action 3: stop the process
+
 ### Reward
 The reward at each step shows the change between the "similarity" measured at the previous and measured at the current state. The similarity measure quantifies the similarity of the current PF with the target PF (which is a circular domain of phase 1 with the inputed total volume fraction). Both PFs are treated as images and the similarity is a modification of Intersection over Union (IoU).
 
 ### Termination
-The process is terminated under the following conditions which are all configurable (see configuration subsection): 
+The process is terminated under the following conditions which are all configurable (see configuration subsection):
 
-* Reach the maximum number of allowed steps, 
-* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored). 
-* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds. 
+* Reach the maximum number of allowed steps,
+* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored).
+* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds.
 * If the action 3 is chosen.
 
 ## How to use it?
-### Installation 
+### Installation
 * First create a new virtual environment or activate an old one with python3.9 (here we create a new one):
 ```commandline
 conda create -n furnenv python=3.9
@@ -112,10 +112,10 @@ Important configuration parameters for the environment are the followings:
 * ```termination_temperature_criterion```: whether to terminate the process when the agent brings the temperature out of the [Tmin, Tmax] range; setting it to False keeps the temperature at the boundary value and does not terminate the process,
 * ```stop_action```: whether to have the termination action or not,
 * ```energy_cost_per_step```: a factor which is multiplied by the difference between the temperature of the furnace and the temperature of the ambient; the larger this value the more expensive would be to run the furnace at higher temperatures; to remove the energy cost from optimization set this value to 0.
-* ```mobility_type```: "const", "exp", or "linear"; determines how the mobility changes with temperature 
-* ```gamma```: a factor which is multiplied by the interface energy (just for reporting), 
+* ```mobility_type```: "const", "exp", or "linear"; determines how the mobility changes with temperature
+* ```gamma```: a factor which is multiplied by the interface energy (just for reporting),
 * ```initial_PF_variation```: the variation of the average PF around 0.5 at reset,
 * ```G_list```: values related to the relative stability of different phases, e.g. "1.0, 1.0",
 * ```shift_PF```: the initial shift of PF values, for easier learning set it to -0.5,
 
-Note that logical conditions and lists are inputed as strings with double quatations, like "False" (not False), and "1.0, 2.0" (not [1.0, 2.0]). Sooorrry! 
+Note that logical conditions and lists are inputed as strings with double quatations, like "False" (not False), and "1.0, 2.0" (not [1.0, 2.0]). Sooorrry!
