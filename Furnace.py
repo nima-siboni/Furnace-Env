@@ -5,7 +5,7 @@ import copy
 import gym
 import numpy as np
 from gym import spaces
-
+TerminationAction: int = 3
 from phase_field_physics.dynamics import Update_PF
 
 
@@ -269,12 +269,14 @@ class Furnace(gym.Env):
         # make a deep copy of the state
         obs = copy.deepcopy(self.state)
 
+        assert TerminationAction == 3, 'The termination action is not 3.'
         # 0 -- increase the time-step
         self.steps += 1
         obs['timestep'] = [np.float(self.steps) / self.N]
         if self.steps == self.N:
             done = True
-            reward, energy_cost = self._calculate_reward(new_state=obs)
+            # pass action the termination action, to get the final reward.
+            reward, energy_cost = self._calculate_reward(new_state=obs, action=TerminationAction)
             self.state = obs
             return obs, reward, done, {}
         # --------------------------------------
@@ -288,9 +290,9 @@ class Furnace(gym.Env):
         # stop the process, freeze!
         if action == 3:
             done = True
-            reward, energy_cost = self._calculate_reward(new_state=obs)
+            reward, energy_cost = self._calculate_reward(new_state=obs, action=action)
             self.state = obs
-            return obs, reward, done, {}
+            return obs, reward, done, {"reward_for_termination": reward}
 
         if action == 0:
             # decrease the temperature
@@ -301,9 +303,11 @@ class Furnace(gym.Env):
                 obs['temperature'] = self.observation_space['temperature'].low
                 if self.termination_temperature_criterion:
                     done = True
-                    reward, energy_cost = self._calculate_reward(new_state=obs)
+                    reward, energy_cost = self._calculate_reward(new_state=obs, action=action)
+                    # calculate the reward for the termination action and add it to the info
+                    terminated_reward, _ = self._calculate_reward(new_state=obs, action=TerminationAction)
                     self.state = obs
-                    return obs, reward, done, {}
+                    return obs, reward, done, {"reward_for_termination": terminated_reward}
 
         if action == 2:
             # increase the temperature
@@ -314,9 +318,11 @@ class Furnace(gym.Env):
                 obs['temperature'] = self.observation_space['temperature'].high
                 if self.termination_temperature_criterion:
                     done = True
-                    reward, energy_cost = self._calculate_reward(new_state=obs)
+                    reward, energy_cost = self._calculate_reward(new_state=obs, action=action)
+                    # calculate the reward for the termination action and add it to the info
+                    terminated_reward, _ = self._calculate_reward(new_state=obs, action=TerminationAction)
                     self.state = obs
-                    return obs, reward, done, {}
+                    return obs, reward, done, {"reward_for_termination": terminated_reward}
 
         if action == 1:
             # Do not change the temperature
@@ -342,26 +348,47 @@ class Furnace(gym.Env):
             else:
                 done = False
 
-        reward, energy_cost = self._calculate_reward(new_state=obs)
+        reward, energy_cost = self._calculate_reward(new_state=obs, action=action)
+        # calculate the reward for the termination action and add it to the info
+        terminated_reward, _ = self._calculate_reward(new_state=obs, action=TerminationAction)
         self.state = obs
-        return (
-            obs,
-            reward,
-            done,
-            {'g2': g2, 'density': np.mean(phi), 'energy_cost': energy_cost},
-        )
+        info = {'g2': g2,
+                 'density': np.mean(phi),
+                 'energy_cost': energy_cost,
+                 "reward_for_termination": terminated_reward}
+        return obs, reward, done, info
 
-    def _calculate_reward(self, new_state: dict) -> tuple[float, float]:
+    def _calculate_reward(self, new_state: dict, action: int) -> tuple[float, float]:
         """
-        This function calculates the immediate reward which should depend on
-        the changes of the structure.
+        This function calculates the immediate reward:
+        - if the action is 3 (termination) the reward is the reward of how close is the final state to the target + the
+        energy cost of the immediate step.
+        - if the action is not the terminated action the reward is the immediate energy cost of the action
 
         :note: The previous state is accessible via self.state
+
         :param new_state: The current state
+        :param action: The action taken
         :return: the immediate reward, and energy cost (the energy cost is not
         used for training, but for analysis).
         """
-        # new overlap
+
+        # Let's first calculate the energy cost which is the same for all actions
+        degrees_above_room_T = (self.min_temperature - 22) / (
+            self.max_temperature - self.min_temperature
+        )
+        energy_cost = (
+            new_state['temperature'][0] + degrees_above_room_T
+        ) * self.energy_cost
+        energy_reward = -energy_cost
+
+        if action != 3:
+            reward = energy_reward
+            return reward, energy_cost
+
+        # if the action is to terminate the process, then the reward is due to
+        # the energy cost and the micro-structure
+
         phi = new_state['PF'][:, :, 0] - self.shift_PF
         centered_phi_lst = []
         shifted_phi_lst = self._translate_half_box(phi)
@@ -374,29 +401,10 @@ class Furnace(gym.Env):
         IoU_lst = [self._IoU(phi) for phi in centered_phi_lst]
         new_max_IoU = np.max(IoU_lst)
 
-        # old overlap
-        phi = self.state['PF'][:, :, 0] - self.shift_PF
-        centered_phi_lst = []
-        shifted_phi_lst = self._translate_half_box(phi)
-        for shifted_phi in shifted_phi_lst:
-            translated_to_center_lst = self._translate_to_the_center(
-                shifted_phi,
-            )
-            for phi in translated_to_center_lst:
-                centered_phi_lst.append(phi)
-        IoU_lst = [self._IoU(phi) for phi in centered_phi_lst]
-        old_max_IoU = np.max(IoU_lst)
+        microstructure_reward = new_max_IoU
 
-        reward = new_max_IoU - old_max_IoU
-
-        # energy cost
-        degrees_above_room_T = (self.min_temperature - 22) / (
-            self.max_temperature - self.min_temperature
-        )
-        energy_cost = (
-            new_state['temperature'][0] + degrees_above_room_T
-        ) * self.energy_cost
-        reward -= energy_cost
+        # total reward: add the energy reward to the microstructure reward
+        reward = microstructure_reward + energy_reward
 
         return reward, energy_cost
 
