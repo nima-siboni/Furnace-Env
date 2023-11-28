@@ -43,6 +43,7 @@ repos:
     rev: 6.0.0
     hooks:
     -   id: flake8
+        args: ['--max-line-length=100']
 - repo: local
   hooks:
     - id: pylint
@@ -53,6 +54,6 @@ repos:
       args:
         [
           "-rn", # Only display messages
-          "--rcfile=pylintrc", # Link to your config file
+          "--rcfile=.pylintrc", # Link to your config file
           "--load-plugins=pylint.extensions.docparams", # Load an extension
         ]

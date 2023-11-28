@@ -59,40 +59,46 @@ pip install -e .
 ### Create a new environment
 After installation, you can create an instance of the furnace environment:
 * with default parameters by
+
 ```python
-from Furnace import Furnace
+from furnace import Furnace
+
 env = Furnace()
 env.reset()
 ```
 * loading the environment config variables from a cfg file:
+
 ```python
 import json  # for reading the config dict from a config file.
-from Furnace import Furnace
+from furnace import Furnace
+
 env_config = json.load(open('./env_config.cfg'))
 env = Furnace(env_config=env_config)
 env.reset()
 ```
 * with custom values for the parameters as a dictionary:
+
 ```python
-from Furnace import Furnace
-env_config = {"N": 2100,
-             "L": 128,
-             "minimum temperature": 100,
-             "maximum temperature": 1000,
-             "desired_volume_fraction": 0.2,
-             "temperature change per step": 60,
-             "number of PF updates per step": 100,
-             "gamma": 1000,
-             "termination_change_criterion": 0,
-             "termination_temperature_criterion": "False",
-             "mobility_type": "exp",
-             "G_list": "1.0, 1.0",
-             "shift_PF": -0.5,
-             "initial_PF_variation": 0.01,
-             "stop_action": "True",
-             "energy_cost_per_step": 0.0,
-             "verbose": "False"
-             }
+from furnace import Furnace
+
+env_config = {"horizon": 2100,
+              "dimension": 128,
+              "minimum temperature": 100,
+              "maximum temperature": 1000,
+              "desired_volume_fraction": 0.2,
+              "temperature change per step": 60,
+              "number of PF updates per step": 100,
+              "gamma": 1000,
+              "termination_change_criterion": 0,
+              "termination_temperature_criterion": "False",
+              "mobility_type": "exp",
+              "g_list": "1.0, 1.0",
+              "shift_pf": -0.5,
+              "initial_pf_variation": 0.01,
+              "stop_action": "True",
+              "energy_cost_per_step": 0.0,
+              "verbose": "False"
+              }
 env = Furnace(env_config=env_config)
 env.reset()
 ```
