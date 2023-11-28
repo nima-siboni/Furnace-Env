@@ -36,8 +36,7 @@ The process is terminated under the following conditions which are all configura
 ### Installation
 * First create a new virtual environment or activate an old one with python3.9 (here we create a new one):
 ```commandline
-conda create -n furnenv python=3.9
-conda activate furnenv
+conda env create -f environment.yaml
 ```
 * Update your pip,
 ```commandline

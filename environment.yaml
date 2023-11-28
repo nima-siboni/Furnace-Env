@@ -1,0 +1,10 @@
+name: furnace
+channels:
+  - defaults
+  - conda-forge  # Additional channel, you can add more if needed
+dependencies:
+  - python=3.10
+  - gym=0.29.0
+  - numpy=1.19.5
+  - pre-commit
+  - pylint
