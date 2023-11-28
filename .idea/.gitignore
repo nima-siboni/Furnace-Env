@@ -1,0 +1,23 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+# .gitignore
+
+# Conda environment
+/env/
+/.env/
+/.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Conda lock file
+environment.lock.yml
+
+# Other system files
+.DS_Store
+Thumbs.db
