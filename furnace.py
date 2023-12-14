@@ -9,27 +9,31 @@ import numpy as np
 from gymnasium import spaces
 
 from phase_field_physics.dynamics import Update_PF
+from utils import config_checks
+from utils import FurnaceConfig
+
+ROOM_TEMPERATURE = 22
 
 
 def _load_default_config():
     return {
         'horizon': 2100,
-        'dimension': 128,
-        'minimum temperature': 100,
-        'maximum temperature': 1000,
+        'dimension': 120,
+        'minimum_temperature': 100,
+        'maximum_temperature': 1000,
         'desired_volume_fraction': 0.2,
-        'temperature change per step': 60,
-        'number of PF updates per step': 100,
+        'temperature_change_per_step': 60,
+        'number_of_pf_updates_per_step': 100,
         'gamma': 1000,
-        'termination_change_criterion': 0,
-        'termination_temperature_criterion': 'False',
+        'termination_change_criterion': 0.,
+        'use_termination_temperature_criterion': False,
         'mobility_type': 'exp',
-        'g_list': '1.0, 1.0',
+        'g_list': [1.0, 1.0],
         'shift_pf': -0.5,
         'initial_pf_variation': 0.01,
-        'stop_action': 'True',
+        'use_stop_action': True,
         'energy_cost_per_step': 0.0,
-        'verbose': 'False',
+        'verbose': False,
     }
 
 
@@ -100,114 +104,78 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         super().__init__()
         if env_config is None:
             env_config = _load_default_config()
-        # Offloading all the env configs
-        self.cfg = env_config
-        self.horizon = env_config['horizon']
-        self.dimension = env_config['dimension']
-        self.min_temperature = env_config['minimum temperature']
-        self.max_temperature = env_config['maximum temperature']
-        self.desired_volume_fraction = env_config['desired_volume_fraction']
-        self.delta_t_not_scaled = np.float(
-            env_config['temperature change per step'],
-        )
-        self.nr_pf_updates_per_step = env_config[
-            'number of PF updates per step'
-        ]
-        self.gamma = env_config['gamma']
-        self.termination_change_criterion = env_config[
-            'termination_change_criterion'
-        ]
-        self.termination_temperature_criterion = env_config[
-            'termination_temperature_criterion'
-        ]
-        self.mobility_type = env_config['mobility_type']
-        self.g_list = np.array(
-            [float(item) for item in env_config['g_list'].split(',')],
-        )
-        if 'shift_pf' in env_config:
-            self.shift_pf = env_config['shift_pf']
-        else:
-            self.shift_pf = 0
-        if 'stop_action' in env_config:
-            self.stop_action = env_config['stop_action']
-        else:
-            self.stop_action = False
-        self.initial_pf_variation = env_config['initial_pf_variation']
-        self.energy_cost = env_config['energy_cost_per_step']
-        self.verbose = env_config['verbose']
-
-        # Creating scaled variables
-        self.delta_t = self.delta_t_not_scaled / (
-            self.max_temperature - self.min_temperature
-        )
+        self.cfg = FurnaceConfig(**env_config)
 
         # Sanity checks for the inputs
-        if self.horizon is not None:
-            assert (
-                self.horizon > 0
-            ), 'Can this be!? Does the game finish before the agent starts?'
-        assert (
-            self.min_temperature <= self.max_temperature
-        ), 'The min temperature is higher than the max temperature.'
+        config_checks(self.cfg)
 
         # ------------------------------------------------------------------- #
         # 1. Lets first implement the action
-        if self.stop_action:
-            self.action_space = spaces.Discrete(4)
-        else:
-            self.action_space = spaces.Discrete(3)
-
+        self._action_space = self._create_action_space(self.cfg)
         # ------------------------------------------------------------------- #
 
         # ------------------------------------------------------------------- #
         # 2. Now implementing the observation
-        # In all the observation values we have the scaled values.
+        self._observation_space = self._create_observation_space(self.cfg)
 
-        self.observation_space = spaces.Dict(
+        # Auxiliary variables: scaled delta t and not shifted desired pf
+        self._delta_t = self.cfg.temperature_change_per_step / (
+            self.cfg.maximum_temperature - self.cfg.minimum_temperature
+        )
+        self._not_shifted_desired_pf = self._return_desired_pf()
+
+        # More auxiliary variables
+        self._state = None
+        self._np_random = None
+        self._steps = None
+        self._steps_beyond_done = None
+
+    @staticmethod
+    def _create_observation_space(config: FurnaceConfig) -> spaces.Dict:
+        """Return the observation space.
+
+        Notes: In all the observation values we have the scaled values.
+        """
+        observation_space = spaces.Dict(
             {
                 'timestep': spaces.Box(
                     low=0,
                     high=1,
                     shape=(1,),
-                    dtype=np.float,
+                    dtype=float,
                 ),
                 'temperature': spaces.Box(
                     low=0,
                     high=1,
                     shape=(1,),
-                    dtype=np.float,
+                    dtype=float,
                 ),
                 'PF': spaces.Box(
-                    low=self.shift_pf,
-                    high=1 + self.shift_pf,
-                    shape=(self.dimension, self.dimension, 1),
-                    dtype=np.float,
+                    low=config.shift_pf,
+                    high=1 + config.shift_pf,
+                    shape=(config.dimension, config.dimension, 1),
+                    dtype=float,
                 ),
             },
         )
+        return observation_space
 
-        # The state
-        self.state = None
-        self.np_random = None
-        # auxiliary variable for timestep
-        self.steps = None
-        self.steps_beyond_done = None
-        self.reset()
-
-        # Goal image
-        self.not_shifted_desired_pf = self._return_desired_pf()
-
-    def _return_desired_pf(self):
+    def _return_desired_pf(self) -> np.ndarray:
         """
-        returns the (NOT SHIFTED) desired PF (a circle).
+        Return the desired PF.
+
+        Note: the PF is not shifted
+        Note: the PF is in shape of a circle.
         """
-        radius_2 = self.dimension * self.dimension * \
-            self.desired_volume_fraction / np.pi
-        not_shifted_desired_pf = np.zeros((self.dimension, self.dimension))
-        x_center = self.dimension / 2.0
-        y_center = self.dimension / 2.0
-        for i in range(self.dimension):
-            for j in range(self.dimension):
+        radius_2 = self.cfg.dimension * self.cfg.dimension * \
+            self.cfg.desired_volume_fraction / np.pi
+        not_shifted_desired_pf = np.zeros(
+            (self.cfg.dimension, self.cfg.dimension),
+        )
+        x_center = self.cfg.dimension / 2.0
+        y_center = self.cfg.dimension / 2.0
+        for i in range(self.cfg.dimension):
+            for j in range(self.cfg.dimension):
                 if (i - y_center) ** 2 + (j - x_center) ** 2 < radius_2:
                     not_shifted_desired_pf[i, j] = 1.0
         return not_shifted_desired_pf
@@ -223,12 +191,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         :return: the new state as a dictionary.
         """
 
-        self.steps_beyond_done = False
+        self._steps_beyond_done = False
 
         # random numbers between 0, 1
         tmp = (
-            np.random.rand(self.dimension, self.dimension, 1)
-            + 2.0 * (np.random.rand() - 0.5) * self.initial_pf_variation
+            np.random.rand(self.cfg.dimension, self.cfg.dimension, 1)
+            + 2.0 * (np.random.rand() - 0.5) * self.cfg.initial_pf_variation
         )
         tmp[tmp < 0] = 0
         tmp[tmp > 1] = 1
@@ -236,7 +204,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self.state = {
             'timestep': [0.0],
             'temperature': [0.5],
-            'PF': pf_0 + self.shift_pf,
+            'PF': pf_0 + self.cfg.shift_pf,
         }
 
         self.steps = 0
@@ -262,8 +230,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         # 0 -- increase the time-step
         self.steps += 1
-        obs['timestep'] = [np.float(self.steps) / self.horizon]
-        if self.steps == self.horizon:
+        obs['timestep'] = [np.float(self.steps) / self.cfg.horizon]
+        if self.steps == self.cfg.horizon:
             done = True
             reward, energy_cost = self._calculate_reward(new_state=obs)
             self.state = obs
@@ -285,12 +253,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         if action == 0:
             # decrease the temperature
-            obs['temperature'][0] -= self.delta_t
+            obs['temperature'][0] -= self._delta_t
             # Do not terminate if the temperature goes below the minimum
             if obs['temperature'][0] < \
-                    self.observation_space['temperature'].low[0]:
-                obs['temperature'] = self.observation_space['temperature'].low
-                if self.termination_temperature_criterion:
+                    self._observation_space['temperature'].low[0]:
+                obs['temperature'] = self._observation_space['temperature'].low
+                if self.cfg.use_termination_temperature_criterion:
                     done = True
                     reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
@@ -298,12 +266,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         if action == 2:
             # increase the temperature
-            obs['temperature'][0] += self.delta_t
+            obs['temperature'][0] += self._delta_t
             # Do not terminate if the temperature goes above the maximum
             if obs['temperature'][0] >\
-                    self.observation_space['temperature'].high[0]:
-                obs['temperature'] = self.observation_space['temperature'].high
-                if self.termination_temperature_criterion:
+                    self._observation_space['temperature'].high[0]:
+                obs['temperature'] = self._observation_space['temperature'].high
+                if self.cfg.use_termination_temperature_criterion:
                     done = True
                     reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
@@ -314,21 +282,21 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             obs['temperature'][0] += 0.0
 
         # Update phi and calculate the rewards
-        phi = obs['PF'][:, :, 0] - self.shift_pf
-        temperature = self.min_temperature + obs['temperature'][0] * (
-            self.max_temperature - self.min_temperature
+        phi = obs['PF'][:, :, 0] - self.cfg.shift_pf
+        temperature = self.cfg.minimum_temperature + obs['temperature'][0] * (
+            self.cfg.maximum_temperature - self.cfg.minimum_temperature
         )
         phi, dphi, g_2 = Update_PF(
             phi,
             temperature,
-            self.nr_pf_updates_per_step,
-            self.g_list,
-            self.mobility_type,
+            self.cfg.number_of_pf_updates_per_step,
+            self.cfg.g_list,
+            self.cfg.mobility_type,
         )
-        obs['PF'] = np.expand_dims(phi, axis=-1) + self.shift_pf
+        obs['PF'] = np.expand_dims(phi, axis=-1) + self.cfg.shift_pf
 
-        if self.termination_change_criterion is not None:
-            done = np.max(np.abs(dphi)) < self.termination_change_criterion
+        if self.cfg.termination_change_criterion is not None:
+            done = np.max(np.abs(dphi)) < self.cfg.termination_change_criterion
 
         reward, energy_cost = self._calculate_reward(new_state=obs)
         self.state = obs
@@ -350,7 +318,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         used for training, but for analysis).
         """
         # new overlap
-        phi = new_state['PF'][:, :, 0] - self.shift_pf
+        phi = new_state['PF'][:, :, 0] - self.cfg.shift_pf
         centered_phi_lst = []
         shifted_phi_lst = self._translate_half_box(phi)
         for shifted_phi in shifted_phi_lst:
@@ -363,7 +331,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         new_max_iou = np.max(iou_lst)
 
         # old overlap
-        phi = self.state['PF'][:, :, 0] - self.shift_pf
+        phi = self.state['PF'][:, :, 0] - self.cfg.shift_pf
         centered_phi_lst = []
         shifted_phi_lst = self._translate_half_box(phi)
         for shifted_phi in shifted_phi_lst:
@@ -378,12 +346,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         reward = new_max_iou - old_max_iou
 
         # energy cost
-        degrees_above_room_t = (self.min_temperature - 22) / (
-            self.max_temperature - self.min_temperature
+        degrees_above_room_t = (self.cfg.minimum_temperature - ROOM_TEMPERATURE) / (
+            self.cfg.maximum_temperature - self.cfg.minimum_temperature
         )
         energy_cost = (
             new_state['temperature'][0] + degrees_above_room_t
-        ) * self.energy_cost
+        ) * self.cfg.energy_cost_per_step
         reward -= energy_cost
 
         return reward, energy_cost
@@ -396,9 +364,21 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         :return: a list consisting of the original pf and the shifted ones.
         """
         current_pf_0 = phase_field
-        current_pf_1 = np.roll(current_pf_0, int(self.dimension / 2.0), axis=0)
-        current_pf_2 = np.roll(current_pf_0, int(self.dimension / 2.0), axis=1)
-        current_pf_3 = np.roll(current_pf_2, int(self.dimension / 2.0), axis=0)
+        current_pf_1 = np.roll(
+            current_pf_0, int(
+                self.cfg.dimension / 2.0,
+            ), axis=0,
+        )
+        current_pf_2 = np.roll(
+            current_pf_0, int(
+                self.cfg.dimension / 2.0,
+            ), axis=1,
+        )
+        current_pf_3 = np.roll(
+            current_pf_2, int(
+                self.cfg.dimension / 2.0,
+            ), axis=0,
+        )
         return [current_pf_0, current_pf_1, current_pf_2, current_pf_3]
 
     def _translate_to_the_center(self, phase_field: np.ndarray) -> list:
@@ -414,25 +394,37 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         epsilon = 1e-5
         x_cm = 0
         y_cm = 0
-        for i in range(self.dimension):
-            for j in range(self.dimension):
+        for i in range(self.cfg.dimension):
+            for j in range(self.cfg.dimension):
                 x_cm += j * phase_field[i, j]
                 y_cm += i * phase_field[i, j]
         if np.sum(phase_field) > epsilon:
             x_cm = x_cm / np.sum(phase_field)
             y_cm = y_cm / np.sum(phase_field)
         else:
-            x_cm = self.dimension / 2.0
-            y_cm = self.dimension / 2.0
+            x_cm = self.cfg.dimension / 2.0
+            y_cm = self.cfg.dimension / 2.0
 
-        shift_x = int(self.dimension / 2.0 - x_cm)
-        shift_y = int(self.dimension / 2.0 - y_cm)
+        shift_x = int(self.cfg.dimension / 2.0 - x_cm)
+        shift_y = int(self.cfg.dimension / 2.0 - y_cm)
         current_pf_0 = np.roll(phase_field, shift=shift_x, axis=1)
         current_pf_0 = np.roll(current_pf_0, shift=shift_y, axis=0)
 
-        current_pf_1 = np.roll(current_pf_0, int(self.dimension / 2.0), axis=0)
-        current_pf_2 = np.roll(current_pf_0, int(self.dimension / 2.0), axis=1)
-        current_pf_3 = np.roll(current_pf_2, int(self.dimension / 2.0), axis=0)
+        current_pf_1 = np.roll(
+            current_pf_0, int(
+                self.cfg.dimension / 2.0,
+            ), axis=0,
+        )
+        current_pf_2 = np.roll(
+            current_pf_0, int(
+                self.cfg.dimension / 2.0,
+            ), axis=1,
+        )
+        current_pf_3 = np.roll(
+            current_pf_2, int(
+                self.cfg.dimension / 2.0,
+            ), axis=0,
+        )
 
         return [current_pf_0, current_pf_1, current_pf_2, current_pf_3]
 
@@ -440,7 +432,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         """
         Returns the (modified) overlap of image and the self.desired_pf.
         """
-        desired_pf = self.not_shifted_desired_pf
+        desired_pf = self._not_shifted_desired_pf
         corrected_overlap = 3 * desired_pf * image - desired_pf - image
         corrected_overlap = np.sum(corrected_overlap)
 
@@ -466,8 +458,37 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         """
         assert np.max(phase_field) <= 1.0
         assert np.min(phase_field) >= 0.0
-        self.state['PF'][:, :, 0] = phase_field + self.shift_pf
+        self.state['PF'][:, :, 0] = phase_field + self.cfg.shift_pf
         return self.state
 
     def render(self):
         raise NotImplementedError
+
+    @staticmethod
+    def _create_action_space(config: FurnaceConfig) -> spaces.Discrete:
+        """Return the action space.
+
+        Args:
+            config: FurnaceConfig from which we only need use_stop_action.
+        Returns:
+            a discrete space with size 3 (if use_stop_action) or 4 (if !use_stop_action).
+        """
+        return spaces.Discrete(4) if config.use_stop_action else spaces.Discrete(3)
+
+    @property
+    def steps(self) -> int:
+        """Return steps."""
+        return self._steps
+
+    @property
+    def state(self):
+        """Return state."""
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        self._state = value
+
+    @steps.setter
+    def steps(self, value):
+        self._steps = value
