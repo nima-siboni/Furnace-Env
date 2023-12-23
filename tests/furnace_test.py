@@ -188,3 +188,33 @@ def test_state_is_equal_to_observation():
             'The temperature in the state and observation should be equal.'
         assert obs['timestep'][0] == state['timestep'][0], \
             'The timestep in the state and observation should be equal.'
+
+
+def test_steps_counter():
+    """Test that the steps counter is correct."""
+    env = Furnace()
+    env.reset()
+    assert env.steps == 0, 'The steps counter should be 0.'
+    done = False
+    counter = 0
+    while not done:
+        assert env.steps == counter, 'The steps counter is not equal to the number of taken steps.'
+        random_action = np.random.randint(0, env._action_space.n)
+        _, _, terminated, truncated, _ = env.step(random_action)
+        done = terminated or truncated
+        counter += 1
+
+
+def test_truncated():
+    """Test that the episode is truncated."""
+    env = Furnace()
+    env.cfg.horizon = 10
+    env = Furnace(dict(env.cfg))
+    env.reset()
+    done = False
+    while not done:
+        random_action = np.random.randint(0, env._action_space.n - 1)
+        _, _, terminated, truncated, _ = env.step(random_action)
+        done = terminated or truncated
+    assert truncated is True, 'Truncated should be True.'
+    assert env.steps == env.cfg.horizon, 'The number of steps should be equal to the horizon.'
