@@ -5,6 +5,7 @@ channels:
 dependencies:
   - python=3.10
   - gymnasium=0.28.1
-  - numpy
+  - numpy=1.26.0
   - pre-commit
   - pylint
+  - pydantic
