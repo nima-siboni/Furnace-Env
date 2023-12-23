@@ -305,8 +305,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             self.cfg.mobility_type,
         )
         obs['PF'] = np.expand_dims(phi, axis=-1) + self.cfg.shift_pf
-
-        return obs, np.mean(phi), np.max(np.abs(dphi)), g_2
+        # TODO: check the types returned from UPDATE_PF # pylint: disable=fixme
+        return obs, float(np.mean(phi)), float(np.max(np.abs(dphi))), float(g_2)
 
     def _update_temperature(self, action: int) -> tuple[float, bool]:
         """
@@ -329,10 +329,10 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         # TODO: refactor this using np.clip # pylint: disable=fixme
         if temperature < self._observation_space['temperature'].low[0]:
-            temperature = self._observation_space['temperature'].low
+            temperature = self._observation_space['temperature'].low[0]
             out_of_bounds = True
         if temperature > self._observation_space['temperature'].high[0]:
-            temperature = self._observation_space['temperature'].high
+            temperature = self._observation_space['temperature'].high[0]
             out_of_bounds = True
 
         return temperature, out_of_bounds
