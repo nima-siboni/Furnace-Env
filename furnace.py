@@ -236,7 +236,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         # 0 -- increase the timestep
         self.steps += 1
-        obs['timestep'] = [np.float(self.steps) / self.cfg.horizon]
+        obs['timestep'] = [float(self.steps) / self.cfg.horizon]
 
         # 0.5 -- check if the horizon is reached
         if self.steps == self.cfg.horizon:
@@ -247,11 +247,11 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             return obs, reward, terminated, truncated, {}
         # --------------------------------------
 
+        truncated = False
+        terminated = False
         # 1 -- implement the actions
         # If we get up to here it means that the steps are in the range
-        truncated = False
 
-        terminated = False
         # stop the process, freeze!
         if action == 3:
             terminated = True
@@ -270,6 +270,28 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             return obs, reward, terminated, truncated, {}
 
         # Update phi and calculate the rewards
+        obs, density, max_abs_dphi, g_2 = self._update_pf(obs)
+
+        if self.cfg.termination_change_criterion is not None:
+            terminated = max_abs_dphi < self.cfg.termination_change_criterion
+
+        reward, energy_cost = self._calculate_reward(new_state=obs)
+
+        info = {'g2': g_2, 'density': density, 'energy_cost': energy_cost}
+        self.state = obs
+        return obs, reward, terminated, truncated, info
+
+    def _update_pf(self, obs: dict) -> tuple[dict, float, float, float]:
+        """
+        Update the phase field.
+
+        Args:
+            obs: the current state.
+        Returns:
+            new_pf: the new phase field.
+            g_2: the g_2 value.
+        """
+
         phi = obs['PF'][:, :, 0] - self.cfg.shift_pf
         temperature = self.cfg.minimum_temperature + obs['temperature'][0] * (
             self.cfg.maximum_temperature - self.cfg.minimum_temperature
@@ -284,15 +306,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         )
         obs['PF'] = np.expand_dims(phi, axis=-1) + self.cfg.shift_pf
 
-        if self.cfg.termination_change_criterion is not None:
-            terminated = np.max(
-                np.abs(dphi),
-            ) < self.cfg.termination_change_criterion
-
-        reward, energy_cost = self._calculate_reward(new_state=obs)
-        info = {'g2': g_2, 'density': np.mean(phi), 'energy_cost': energy_cost}
-        self.state = obs
-        return obs, reward, terminated, truncated, info
+        return obs, np.mean(phi), np.max(np.abs(dphi)), g_2
 
     def _update_temperature(self, action: int) -> tuple[float, bool]:
         """
