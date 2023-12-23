@@ -218,3 +218,14 @@ def test_truncated():
         done = terminated or truncated
     assert truncated is True, 'Truncated should be True.'
     assert env.steps == env.cfg.horizon, 'The number of steps should be equal to the horizon.'
+
+    # Test that the episode is truncated when the stop action is not used.
+    env.cfg.use_stop_action = False
+    env = Furnace(dict(env.cfg))
+    env.reset()
+    done = False
+    while not done:
+        random_action = np.random.randint(0, env._action_space.n)
+        _, _, terminated, truncated, _ = env.step(random_action)
+        done = terminated or truncated
+    assert truncated is True, 'Truncated should be True.'
