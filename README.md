@@ -34,10 +34,6 @@ The process is terminated under the following conditions which are all configura
 
 ## How to use it?
 ### Installation
-* First create a new virtual environment or activate an old one with python3.9 (here we create a new one):
-```commandline
-conda env create -f environment.yaml
-```
 * Update your pip,
 ```commandline
 pip install --upgrade pip
@@ -47,11 +43,10 @@ pip install --upgrade pip
 git clone git@github.com:nima-siboni/furnace_env.git
 cd furnace_env
 ```
-* Install the requirements:
+* create a new virtual environment or activate an old one with python3.9 (here we create a new one):
 ```commandline
-pip install -r requirements.txt
+conda env create -f environment.yaml
 ```
-
 * Finally install the "Furnace" package:
 ```commandline
 pip install -e .

@@ -94,8 +94,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         minimum temperature -- min temperature of the furnace (in C)
         maximum temperature -- max temperature of the furnace (in C)
         desired_volume_fraction -- the volume fraction of the desired PF which
-        is circular temperature change per step -- self explanatory
-        number of PF updates per step -- self explanatory
+        is circular temperature change per step -- self-explanatory
+        number of PF updates per step -- self-explanatory
         gamma -- the coefficient for calculation of the interface energy
         termination_change_criterion -- stop the episode if the change in PF is
          smaller that this criterion. To disable this criterion set it to 0.0.
@@ -194,10 +194,9 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self._steps_beyond_done = False
 
         # random numbers between 0, 1
-        tmp = (
-            np.random.rand(self.cfg.dimension, self.cfg.dimension, 1)
-            + 2.0 * (np.random.rand() - 0.5) * self.cfg.initial_pf_variation
-        )
+        tmp = np.random.rand(self.cfg.dimension, self.cfg.dimension, 1) + \
+            2.0 * (np.random.rand() - 0.5) * self.cfg.initial_pf_variation
+
         tmp[tmp < 0] = 0
         tmp[tmp > 1] = 1
         pf_0 = tmp
@@ -268,7 +267,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             # increase the temperature
             obs['temperature'][0] += self._delta_t
             # Do not terminate if the temperature goes above the maximum
-            if obs['temperature'][0] >\
+            if obs['temperature'][0] > \
                     self._observation_space['temperature'].high[0]:
                 obs['temperature'] = self._observation_space['temperature'].high
                 if self.cfg.use_termination_temperature_criterion:
@@ -487,8 +486,10 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
     @state.setter
     def state(self, value):
+        """Set state."""
         self._state = value
 
     @steps.setter
     def steps(self, value):
+        """Set steps."""
         self._steps = value
