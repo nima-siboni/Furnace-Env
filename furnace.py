@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 from typing import Any
+from typing import Optional
 
 import gymnasium as gym
 import numpy as np
@@ -109,13 +110,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         # Sanity checks for the inputs
         config_checks(self.cfg)
 
-        # ------------------------------------------------------------------- #
-        # 1. Lets first implement the action
         self._action_space = self._create_action_space(self.cfg)
-        # ------------------------------------------------------------------- #
 
-        # ------------------------------------------------------------------- #
-        # 2. Now implementing the observation
         self._observation_space = self._create_observation_space(self.cfg)
 
         # Auxiliary variables: scaled delta t and not shifted desired pf
@@ -180,26 +176,32 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                     not_shifted_desired_pf[i, j] = 1.0
         return not_shifted_desired_pf
 
-    def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> dict:
+    def reset(self, *, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None) ->\
+            tuple[dict, dict]:
         """
         Resets the state.
-        timestep is set to zero
-        temperature is set to 0.50, better to set it to a value at which both
-        phases are similarly stable.
-        PF is set to random around 0.5 with tolerance of initial_pf_variation
 
-        :return: the new state as a dictionary.
+        The followings are done:
+        timestep is set to zero.
+        temperature is set to 0.50, better to set it to a value at which both phases are similarly.
+        stable.
+        PF is set to random around 0.5 with tolerance of initial_pf_variation.
+
+        Returns:
+             the new state as a dictionary.
+             the new info as a dictionary which has None for all the values.
         """
 
         self._steps_beyond_done = False
 
-        # random numbers between 0, 1
+        # random phase field values between 0, 1
         tmp = np.random.rand(self.cfg.dimension, self.cfg.dimension, 1) + \
             2.0 * (np.random.rand() - 0.5) * self.cfg.initial_pf_variation
 
         tmp[tmp < 0] = 0
         tmp[tmp > 1] = 1
         pf_0 = tmp
+
         self.state = {
             'timestep': [0.0],
             'temperature': [0.5],
@@ -207,21 +209,27 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         }
 
         self.steps = 0
-        return self.state
+        return self.state, {'g2': None, 'density': None, 'energy_cost': None}
 
     def step(self, action: int) -> tuple:
         """
+        Step the environment.
+
         One step of the Furnace environment is composed of:
         0 - increase the timestep
         1 - an initial change in the temperature
         2 - applying consequent "nr pf updates per step" (e.g. 10) steps of
         update for PF.
 
-        :param action: the chosen action.
-        :return: the common (Gym) output of the step function with s, r, done,
-         info.
-        In particular our info includes g_2, density, and energy cost for easier
-         further analysis.
+        Args:
+            action: the chosen action.
+        Returns:
+            observation: the new phase field, temperature, and timestep.
+            reward: the reward for the action.
+            terminated: True if the episode is terminated.
+            truncated: if the horizon is reached.
+            info: a dictionary with additional information about the environment. In particular,
+            it includes g_2, density, and energy cost for easierfurther analysis.
         """
 
         # make a deep copy of the state
@@ -231,24 +239,24 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self.steps += 1
         obs['timestep'] = [np.float(self.steps) / self.cfg.horizon]
         if self.steps == self.cfg.horizon:
-            done = True
+            truncated = True
+            terminated = False
             reward, energy_cost = self._calculate_reward(new_state=obs)
             self.state = obs
-            return obs, reward, done, {}
+            return obs, reward, terminated, truncated, {}
         # --------------------------------------
 
         # 1 -- implement the actions
         # If we get up to here it means that the steps are in the range
+        truncated = False
 
-        # set the done
-        done = False
-
+        terminated = False
         # stop the process, freeze!
         if action == 3:
-            done = True
+            terminated = True
             reward, energy_cost = self._calculate_reward(new_state=obs)
             self.state = obs
-            return obs, reward, done, {}
+            return obs, reward, terminated, truncated, {}
 
         if action == 0:
             # decrease the temperature
@@ -258,10 +266,10 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                     self._observation_space['temperature'].low[0]:
                 obs['temperature'] = self._observation_space['temperature'].low
                 if self.cfg.use_termination_temperature_criterion:
-                    done = True
+                    terminated = True
                     reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
-                    return obs, reward, done, {}
+                    return obs, reward, terminated, truncated, {}
 
         if action == 2:
             # increase the temperature
@@ -271,10 +279,10 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                     self._observation_space['temperature'].high[0]:
                 obs['temperature'] = self._observation_space['temperature'].high
                 if self.cfg.use_termination_temperature_criterion:
-                    done = True
+                    terminated = True
                     reward, energy_cost = self._calculate_reward(new_state=obs)
                     self.state = obs
-                    return obs, reward, done, {}
+                    return obs, reward, terminated, truncated, {}
 
         if action == 1:
             # Do not change the temperature
@@ -285,6 +293,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         temperature = self.cfg.minimum_temperature + obs['temperature'][0] * (
             self.cfg.maximum_temperature - self.cfg.minimum_temperature
         )
+
         phi, dphi, g_2 = Update_PF(
             phi,
             temperature,
@@ -295,26 +304,26 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         obs['PF'] = np.expand_dims(phi, axis=-1) + self.cfg.shift_pf
 
         if self.cfg.termination_change_criterion is not None:
-            done = np.max(np.abs(dphi)) < self.cfg.termination_change_criterion
+            terminated = np.max(
+                np.abs(dphi),
+            ) < self.cfg.termination_change_criterion
 
         reward, energy_cost = self._calculate_reward(new_state=obs)
+        info = {'g2': g_2, 'density': np.mean(phi), 'energy_cost': energy_cost}
         self.state = obs
-        return (
-            obs,
-            reward,
-            done,
-            {'g2': g_2, 'density': np.mean(phi), 'energy_cost': energy_cost},
-        )
+        return obs, reward, terminated, truncated, info
 
     def _calculate_reward(self, new_state: dict) -> tuple[float, float]:
         """
-        This function calculates the immediate reward which should depend on
-        the changes of the structure.
+        Return the reward and energy cost.
 
-        :note: The previous state is accessible via self.state
-        :param new_state: The current state
-        :return: the immediate reward, and energy cost (the energy cost is not
-        used for training, but for analysis).
+        Note: The previous state is accessible via self.state
+
+        Args:
+            new_state: the new state.
+        Returns:
+            reward: the reward.
+            energy_cost: the energy cost; it is not used for training, but for analysis.
         """
         # new overlap
         phi = new_state['PF'][:, :, 0] - self.cfg.shift_pf
@@ -451,9 +460,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
     def _set_pf(self, phase_field: np.ndarray) -> dict:
         """
-        Sets the desired PF.
+        Set the desired PF after shifting it and return the new state.
 
-        :return: the new state
+        Args:
+            phase_field: the new phase field.
+        Returns:
+            the updated state.
         """
         assert np.max(phase_field) <= 1.0
         assert np.min(phase_field) >= 0.0
