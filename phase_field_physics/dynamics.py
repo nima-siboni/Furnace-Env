@@ -1,3 +1,4 @@
+# pylint: disable-all
 # Allen-Cahn phase-field model
 from __future__ import annotations
 
@@ -140,15 +141,7 @@ def Calc_Force_AC(
         T_max=T_max,
         T_min=T_min,
     )
-    return Mobility * (
-        2 * Kappa * Calc_Del2(Phi)
-        - Calc_dfdPhi(
-            Phi,
-            Temperature,
-            G_list,
-            T_max,
-        )
-    )
+    return Mobility * (2 * Kappa * Calc_Del2(Phi) - Calc_dfdPhi(Phi, Temperature, G_list, T_max))
 
 
 def Update_PF(
@@ -173,15 +166,16 @@ def Update_PF(
         f = Calc_Force_AC(Phi, Temperature, G_list, mobility_type)
         Phi = Phi + f * dt
     # non-periodic condition is forced here:
-    Phi[:, 0] = 0
-    Phi[:, -1] = 0
-    Phi[0, :] = 0
-    Phi[-1, :] = 0
+    # Phi[:, 0] = 0
+    # Phi[:, -1] = 0
+    # Phi[0, :] = 0
+    # Phi[-1, :] = 0
     if np.min(Phi) < 0:
         print('Something wrong with Phi, min is negative', np.min(Phi))
 
-    if np.max(Phi) > 1:
-        print('Something wrong with Phi, max is larger than 1', np.max(Phi))
+    assert np.max(
+        Phi,
+    ) <= 1.0, 'Something wrong with Phi, max is larger than 1' + str(np.max(Phi))
 
     assert np.min(Phi) >= 0, 'sth went wrong in Phi Update' + str(np.min(Phi))
     assert np.max(Phi) <= 1, 'sth went wrong in Phi Update' + str(np.max(Phi))
