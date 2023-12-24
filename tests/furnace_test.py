@@ -72,6 +72,21 @@ def test_reset():
     assert obs['temperature'][0] >= 0., 'The temperature is smaller than 0.0.'
     assert obs['timestep'][0] == 0., 'The timestep is not 0.'
 
+    # Test that the reset function resets the steps counter.
+    env = Furnace()
+    env.reset()
+    assert env.steps == 0, 'The steps counter should be 0.'
+
+    # Test that the seed is effective.
+    env = Furnace()
+    obs1, _ = env.reset(seed=42)
+    obs2, _ = env.reset(seed=42)
+    obs3, _ = env.reset(seed=43)
+    assert np.array_equal(obs1['PF'], obs2['PF']), 'The PF should be the same.'
+    assert not np.array_equal(
+        obs1['PF'], obs3['PF'],
+    ), 'The PF should be different.'
+
 
 def test_step_signature():
     """Test that the step function has the correct signature."""
@@ -229,3 +244,30 @@ def test_truncated():
         _, _, terminated, truncated, _ = env.step(random_action)
         done = terminated or truncated
     assert truncated is True, 'Truncated should be True.'
+
+
+def test_info():
+    """
+    Test that the info dictionary is correct. In particular g2 and density should be invariant
+    with respect to translations of pf.
+    """
+    env = Furnace()
+    env.reset(seed=42)
+    _, _, _, _, info = env.step(0)
+    assert 'g2' in info, 'The info dictionary should contain g2.'
+    assert 'density' in info, 'The info dictionary should contain density.'
+
+    g2 = info['g2']
+    density = info['density']
+    # reset the environment and use np.roll to shift the PF
+    del env
+    env = Furnace()
+    env.reset(seed=42)
+    env.state['PF'] = np.roll(
+        env.state['PF'], np.random.randint(1, 10000), axis=0,
+    )
+    _, _, _, _, info = env.step(0)
+    assert np.isclose(g2, info['g2']), \
+        'The g2 should be invariant with respect to translations of pf.'
+    assert np.isclose(density, info['density']), \
+        'The density should be invariant with respect to translations of pf.'
