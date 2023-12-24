@@ -280,11 +280,54 @@ def test_info():
         'The energy_cost should be invariant with respect to translations of pf.'
 
 
+def test_state_and_dynamics():
+    """Test that the state and dynamics is invariant to translation."""
+    env = Furnace()
+    env.reset(seed=42)
+    n_steps = 20
+
+    def _generate_random_array(n):
+        """Generate a random integer between 1 and 3 (inclusive) for each element in the array."""
+        random_array = [np.random.randint(0, 3) for _ in range(n)]
+        return random_array
+    actions = _generate_random_array(n_steps)
+    for action in actions:
+        obs, _, _, _, _ = env.step(action)
+
+    obs_original = obs.copy()
+    # reset the environment and use np.roll to shift the PF, then take n_steps steps, then
+    # shift the PF back. The results should be the same as the original PF.
+    del env
+    env = Furnace()
+    env.reset(seed=42)
+    ax_0_shift = np.random.randint(1, 10000)
+    ax_1_shift = np.random.randint(1, 10000)
+    env.state['PF'] = np.roll(
+        env.state['PF'], ax_0_shift, axis=0,
+    )
+    env.state['PF'] = np.roll(
+        env.state['PF'], ax_1_shift, axis=1,
+    )
+    for action in actions:
+        _, _, _, _, _ = env.step(action)
+
+    env.state['PF'] = np.roll(
+        env.state['PF'], -ax_1_shift, axis=1,
+    )
+    env.state['PF'] = np.roll(
+        env.state['PF'], -ax_0_shift, axis=0,
+    )
+
+    assert np.allclose(env.state['PF'], obs_original['PF']), \
+        'The updates of pf should be invariant with respect to translations.'
+
+
 def test_reward():
     """Test that the reward is correct."""
     env = Furnace()
     env.reset(seed=42)
-    _, reward_original, _, _, _ = env.step(0)
+    for _ in range(100):
+        _, reward_original, _, _, _ = env.step(1)
 
     # reset the environment and use np.roll to shift the PF
     del env
@@ -296,6 +339,8 @@ def test_reward():
     env.state['PF'] = np.roll(
         env.state['PF'], np.random.randint(1, 10000), axis=1,
     )
-    _, reward, _, _, _ = env.step(0)
+    for _ in range(100):
+        _, reward, _, _, _ = env.step(1)
+    print(reward_original, reward)
     assert np.isclose(reward, reward_original), \
         'The reward should be invariant with respect to translations of pf.'
