@@ -194,6 +194,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         self._steps_beyond_done = False
 
+        if seed is not None:
+            np.random.seed(seed)
         # random phase field values between 0, 1
         tmp = np.random.rand(self.cfg.dimension, self.cfg.dimension, 1) + \
             2.0 * (np.random.rand() - 0.5) * self.cfg.initial_pf_variation
