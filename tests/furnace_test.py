@@ -268,6 +268,9 @@ def test_info():
     env.state['PF'] = np.roll(
         env.state['PF'], np.random.randint(1, 10000), axis=0,
     )
+    env.state['PF'] = np.roll(
+        env.state['PF'], np.random.randint(1, 10000), axis=1,
+    )
     _, _, _, _, info = env.step(0)
     assert np.isclose(g2, info['g2']), \
         'The g2 should be invariant with respect to translations of pf.'
@@ -275,3 +278,24 @@ def test_info():
         'The density should be invariant with respect to translations of pf.'
     assert np.isclose(energy_cost, info['energy_cost']), \
         'The energy_cost should be invariant with respect to translations of pf.'
+
+
+def test_reward():
+    """Test that the reward is correct."""
+    env = Furnace()
+    env.reset(seed=42)
+    _, reward_original, _, _, _ = env.step(0)
+
+    # reset the environment and use np.roll to shift the PF
+    del env
+    env = Furnace()
+    env.reset(seed=42)
+    env.state['PF'] = np.roll(
+        env.state['PF'], np.random.randint(1, 10000), axis=0,
+    )
+    env.state['PF'] = np.roll(
+        env.state['PF'], np.random.randint(1, 10000), axis=1,
+    )
+    _, reward, _, _, _ = env.step(0)
+    assert np.isclose(reward, reward_original), \
+        'The reward should be invariant with respect to translations of pf.'
