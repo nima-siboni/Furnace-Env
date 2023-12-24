@@ -256,9 +256,11 @@ def test_info():
     _, _, _, _, info = env.step(0)
     assert 'g2' in info, 'The info dictionary should contain g2.'
     assert 'density' in info, 'The info dictionary should contain density.'
+    assert 'energy_cost' in info, 'The info dictionary should contain energy_cost.'
 
     g2 = info['g2']
     density = info['density']
+    energy_cost = info['energy_cost']
     # reset the environment and use np.roll to shift the PF
     del env
     env = Furnace()
@@ -271,3 +273,5 @@ def test_info():
         'The g2 should be invariant with respect to translations of pf.'
     assert np.isclose(density, info['density']), \
         'The density should be invariant with respect to translations of pf.'
+    assert np.isclose(energy_cost, info['energy_cost']), \
+        'The energy_cost should be invariant with respect to translations of pf.'
