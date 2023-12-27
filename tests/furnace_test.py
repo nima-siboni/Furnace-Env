@@ -311,21 +311,13 @@ def test_state_and_dynamics():
     env.reset(seed=42)
     ax_0_shift = np.random.randint(1, 10000)
     ax_1_shift = np.random.randint(1, 10000)
-    env.state['PF'] = np.roll(
-        env.state['PF'], ax_0_shift, axis=0,
-    )
-    env.state['PF'] = np.roll(
-        env.state['PF'], ax_1_shift, axis=1,
-    )
+    env.state['PF'] = np.roll(env.state['PF'], ax_0_shift, axis=0)
+    env.state['PF'] = np.roll(env.state['PF'], ax_1_shift, axis=1)
     for action in actions:
         _, _, _, _, _ = env.step(action)
 
-    env.state['PF'] = np.roll(
-        env.state['PF'], -ax_1_shift, axis=1,
-    )
-    env.state['PF'] = np.roll(
-        env.state['PF'], -ax_0_shift, axis=0,
-    )
+    env.state['PF'] = np.roll(env.state['PF'], -ax_1_shift, axis=1)
+    env.state['PF'] = np.roll(env.state['PF'], -ax_0_shift, axis=0)
 
     assert np.allclose(env.state['PF'], obs_original['PF']), \
         'The updates of pf should be invariant with respect to translations.'
