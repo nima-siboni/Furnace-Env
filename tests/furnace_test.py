@@ -281,22 +281,31 @@ def test_info():
 
 
 def test_state_and_dynamics():
-    """Test that the state and dynamics is invariant to translation."""
+    """
+    Test that the state and dynamics is invariant to translation.
+
+    Note: to check the translation invariance of the dynamics, we compare the end state of two
+    episode:
+    * the first episode starts from a random state, and it is run for n_steps,
+    * the second episode starts from the same state, but the PF is shifted by a random amount, and
+      it is run for n_steps. Then the final state is shifted back by the same amount.
+    The obtained states should match if the dynamics is translational invariant.
+    """
     env = Furnace()
     env.reset(seed=42)
     n_steps = 20
 
-    def _generate_random_array(n):
-        """Generate a random integer between 1 and 3 (inclusive) for each element in the array."""
+    def _generate_random_actions(n) -> list[int]:
+        """Generate a random sequence of actions between 1 and 3 (inclusive)."""
         random_array = [np.random.randint(0, 3) for _ in range(n)]
         return random_array
-    actions = _generate_random_array(n_steps)
+    actions = _generate_random_actions(n_steps)
     for action in actions:
         obs, _, _, _, _ = env.step(action)
 
     obs_original = obs.copy()
     # reset the environment and use np.roll to shift the PF, then take n_steps steps, then
-    # shift the PF back. The results should be the same as the original PF.
+    # shift the PF back. The results should be the same as the final state of the original episode.
     del env
     env = Furnace()
     env.reset(seed=42)
@@ -323,24 +332,28 @@ def test_state_and_dynamics():
 
 
 def test_reward():
-    """Test that the reward is correct."""
+    """
+    Test that the reward is translational invariant.
+
+    Note: for the test's logic see DocString of test_state_and_dynamics.
+    """
     env = Furnace()
     env.reset(seed=42)
-    for _ in range(100):
-        _, reward_original, _, _, _ = env.step(1)
-
+    reward_original_lst = []
+    for _ in range(5):
+        _, reward, _, _, _ = env.step(1)
+        reward_original_lst.append(reward)
     # reset the environment and use np.roll to shift the PF
     del env
     env = Furnace()
     env.reset(seed=42)
-    env.state['PF'] = np.roll(
-        env.state['PF'], np.random.randint(1, 10000), axis=0,
-    )
-    env.state['PF'] = np.roll(
-        env.state['PF'], np.random.randint(1, 10000), axis=1,
-    )
-    for _ in range(100):
+    ax_0_shift = np.random.randint(1, 10000)
+    ax_1_shift = np.random.randint(1, 10000)
+    env.state['PF'] = np.roll(env.state['PF'], ax_0_shift, axis=0)
+    env.state['PF'] = np.roll(env.state['PF'], ax_1_shift, axis=1)
+    reward_lst = []
+    for _ in range(5):
         _, reward, _, _, _ = env.step(1)
-    print(reward_original, reward)
-    assert np.isclose(reward, reward_original), \
+        reward_lst.append(reward)
+    assert np.allclose(reward_lst, reward_original_lst), \
         'The reward should be invariant with respect to translations of pf.'
