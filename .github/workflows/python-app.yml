@@ -22,7 +22,6 @@ jobs:
           activate-environment: furnace
           channels: defaults,conda-forge
           environment-file: environment.yaml
-          python-version: 3.10
           auto-activate-base: false
       - name: Set up Python 3.10
         uses: actions/setup-python@v3
