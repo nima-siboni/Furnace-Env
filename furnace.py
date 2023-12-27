@@ -13,8 +13,6 @@ from phase_field_physics.dynamics import Update_PF
 from utils import config_checks
 from utils import FurnaceConfig
 
-ROOM_TEMPERATURE = 22
-
 
 def _load_default_config():
     return {
@@ -413,7 +411,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             self.cfg.maximum_temperature - self.cfg.minimum_temperature
         )
         energy_cost = self.cfg.energy_cost_per_step * \
-            (unscaled_temperature - ROOM_TEMPERATURE)
+            (unscaled_temperature - self.cfg.room_temperature)
 
         return energy_cost
 
