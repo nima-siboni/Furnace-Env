@@ -83,24 +83,24 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
        * If the action 3 is chosen.
     """
 
-    def __init__(self, env_config=None):
+    def __init__(self, env_config: Optional[dict[str, Any]] = None) -> None:
         """
         Creates a new instant of the Furnace environment
 
-        :param : env_config which is a Dictionary with all the needed
-        configurations, including:
-
-        horizon -- the length of the experiment
-        dimension -- the spatial length of the domain, i.e. the number of pixels
-        minimum temperature -- min temperature of the furnace (in C)
-        maximum temperature -- max temperature of the furnace (in C)
-        desired_volume_fraction -- the volume fraction of the desired PF which
-        is circular temperature change per step -- self-explanatory
-        number of PF updates per step -- self-explanatory
-        gamma -- the coefficient for calculation of the interface energy
-        termination_change_criterion -- stop the episode if the change in PF is
-         smaller that this criterion. To disable this criterion set it to 0.0.
-        verbose -- self explanatory
+        Args:
+            env_config: a dictionary with the configuration of the environment.
+                The dictionary includes all the needed configurations, including:
+                horizon: the length of the experiment \
+                dimension: the spatial length of the domain, i.e. the number of pixels
+                minimum temperature: min temperature of the furnace (in C)
+                maximum temperature: max temperature of the furnace (in C)
+                desired_volume_fraction: the volume fraction of the desired PF which
+                is circular temperature change per step: self-explanatory
+                number of PF updates per step: self-explanatory
+                gamma: the coefficient for calculation of the interface energy
+                termination_change_criterion: stop the episode if the change in PF is
+                smaller that this criterion. To disable this criterion set it to 0.0.
+                verbose -- self explanatory
         """
         super().__init__()
         if env_config is None:
@@ -131,6 +131,9 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         """Return the observation space.
 
         Notes: In all the observation values we have the scaled values.
+
+        Args:
+            config: FurnaceConfig.
         """
         observation_space = spaces.Dict(
             {
@@ -162,6 +165,8 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         Note: the PF is not shifted
         Note: the PF is in shape of a circle.
+
+        Returns: the desired PF.
         """
         radius_2 = self.cfg.dimension * self.cfg.dimension * \
             self.cfg.desired_volume_fraction / np.pi
@@ -178,13 +183,13 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
     def _return_desired_pf_fourier_transform(self) -> np.ndarray:
         """
-        Get the desired PF and return the normalized FFT.
+        Return the normalized FFT of the desired PF.
 
         Note: the FFT is normalized by subtracting the mean and dividing by the standard deviation.
         This is helpful for calculation of the correlation between the FFT of the desired PF and the
         FFT of the current PF.
 
-        :return: the normalized FFT of the desired PF.
+        Returns: the normalized FFT of the desired PF.
         """
         fourier_transform = np.abs(np.fft.fft2(self._not_shifted_desired_pf))
         # find the standard deviation and mean of the Fourier transform
@@ -195,15 +200,19 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         return fourier_transform_normalized
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None) -> \
-            tuple[dict, dict]:
+            tuple[spaces.Dict, dict]:
         """
-        Resets the state.
+        Resets the environment.
 
-        The followings are done:
+        Notes: The followings are done:
         timestep is set to zero.
-        temperature is set to 0.50, better to set it to a value at which both phases are similarly.
+        temperature is set to 0.50, better to set it to a value at which both phases are similarly
         stable.
         PF is set to random around 0.5 with tolerance of initial_pf_variation.
+
+        Args:
+            seed: the seed for the random number generator.
+            options: a dictionary with additional options.
 
         Returns:
              the new state as a dictionary.
@@ -235,14 +244,14 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         """
         Step the environment.
 
-        One step of the Furnace environment is composed of:
-        0 - increase the timestep
-        1 - an initial change in the temperature
-        2 - applying consequent "nr pf updates per step" (e.g. 10) steps of
-        update for PF.
+        Notes: One step of the Furnace environment is composed of:
+        0 - increase the timestep,
+        1 - a change in the temperature,
+        2 - applying consequent "nr pf updates per step" (e.g. 10) steps of update for PF.
 
         Args:
             action: the chosen action.
+
         Returns:
             observation: the new phase field, temperature, and timestep.
             reward: the reward for the action.
@@ -280,7 +289,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             return obs, reward, terminated, truncated, {}
 
         obs['temperature'][0], out_of_bound_temperature = self._update_temperature(
-            action,
+            action=action,
         )
 
         if out_of_bound_temperature and self.cfg.use_termination_temperature_criterion:
@@ -301,12 +310,13 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self.state = obs
         return obs, reward, terminated, truncated, info
 
-    def _update_pf(self, obs: dict) -> tuple[dict, float, float, float]:
+    def _update_pf(self, obs: spaces.Dict) -> tuple[dict, float, float, float]:
         """
         Update the phase field.
 
         Args:
             obs: the current state.
+
         Returns:
             new_pf: the new phase field.
             g_2: the g_2 value.
@@ -334,6 +344,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         Args:
             action: the chosen action.
+
         Returns:
             temperature: the new temperature.
             out_of_bounds: True if the temperature is out of bounds.
@@ -357,14 +368,20 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         return temperature, out_of_bounds
 
-    def _calculate_reward(self, new_state: dict) -> tuple[float, float]:
+    def _calculate_reward(self, new_state: spaces.Dict) -> tuple[float, float]:
         """
         Return the reward and energy cost.
 
-        Note: The previous state is accessible via self.state
+        Notes:
+            The previous state is accessible via self.state.
+            The reward is the sum of two values:
+             the correlation between the normalized Fourier transform of the desired PF and the
+             normalized Fourier transform of the current PF, and
+             the negative of energy cost in this step.
 
         Args:
             new_state: the new state.
+
         Returns:
             reward: the reward.
             energy_cost: the energy cost; it is not used for training, but for analysis.
@@ -387,17 +404,31 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                                            f"and the current PF's FFT magnitude is {correlation}," \
                                            f' it should be between -1 and 1.'
         # energy cost
-        degrees_above_room_t = (self.cfg.minimum_temperature - ROOM_TEMPERATURE) / (
-            self.cfg.maximum_temperature - self.cfg.minimum_temperature
-        )
-        energy_cost = (
-            new_state['temperature'][0] + degrees_above_room_t
-        ) * self.cfg.energy_cost_per_step
+        energy_cost = self._calculate_energy_cost(new_state=new_state)
         reward -= energy_cost
 
         return reward, energy_cost
 
-    def _set_pf(self, phase_field: np.ndarray) -> dict:
+    def _calculate_energy_cost(self, new_state: spaces.Dict) -> float:
+        """
+        Return the energy cost.
+
+        Args:
+            new_state: the new state.
+
+        Returns:
+            energy_cost: the energy cost.
+        """
+
+        unscaled_temperature = self.cfg.minimum_temperature + new_state['temperature'][0] * (
+            self.cfg.maximum_temperature - self.cfg.minimum_temperature
+        )
+        energy_cost = self.cfg.energy_cost_per_step * \
+            (unscaled_temperature - ROOM_TEMPERATURE)
+
+        return energy_cost
+
+    def _set_pf(self, phase_field: np.ndarray) -> spaces.Dict:
         """
         Set the desired PF after shifting it and return the new state.
 
@@ -416,10 +447,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
     @staticmethod
     def _create_action_space(config: FurnaceConfig) -> spaces.Discrete:
-        """Return the action space.
+        """
+        Return the action space.
 
         Args:
             config: FurnaceConfig from which we only need use_stop_action.
+
         Returns:
             a discrete space with size 3 (if use_stop_action) or 4 (if !use_stop_action).
         """
@@ -431,16 +464,16 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         return self._steps
 
     @property
-    def state(self):
+    def state(self) -> spaces.Dict:
         """Return state."""
         return self._state
 
     @state.setter
-    def state(self, value):
+    def state(self, value: spaces.Dict):
         """Set state."""
         self._state = value
 
     @steps.setter
-    def steps(self, value):
+    def steps(self, value: int):
         """Set steps."""
         self._steps = value
