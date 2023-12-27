@@ -176,6 +176,24 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                     not_shifted_desired_pf[i, j] = 1.0
         return not_shifted_desired_pf
 
+    def _return_desired_pf_fourier_transform(self) -> np.ndarray:
+        """
+        Get the desired PF and return the normalized FFT.
+
+        Note: the FFT is normalized by subtracting the mean and dividing by the standard deviation.
+        This is helpful for calculation of the correlation between the FFT of the desired PF and the
+        FFT of the current PF.
+
+        :return: the normalized FFT of the desired PF.
+        """
+        fourier_transform = np.abs(np.fft.fft2(self._not_shifted_desired_pf))
+        # find the standard deviation and mean of the Fourier transform
+        std = np.std(fourier_transform)
+        mean = np.mean(fourier_transform)
+        # normalize the Fourier transform
+        fourier_transform_normalized = (fourier_transform - mean) / std
+        return fourier_transform_normalized
+
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None) -> \
             tuple[dict, dict]:
         """
@@ -231,7 +249,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             terminated: True if the episode is terminated.
             truncated: if the horizon is reached.
             info: a dictionary with additional information about the environment. In particular,
-            it includes g_2, density, and energy cost for easierfurther analysis.
+            it includes g_2, density, and energy cost for easier further analysis.
         """
 
         obs = copy.deepcopy(self.state)
@@ -351,34 +369,23 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             reward: the reward.
             energy_cost: the energy cost; it is not used for training, but for analysis.
         """
-        # new overlap
-        phi = new_state['PF'][:, :, 0] - self.cfg.shift_pf
-        centered_phi_lst = []
-        shifted_phi_lst = self._translate_half_box(phi)
-        for shifted_phi in shifted_phi_lst:
-            translated_to_center_lst = self._translate_to_the_center(
-                shifted_phi,
-            )
-            for phi in translated_to_center_lst:
-                centered_phi_lst.append(phi)
-        iou_lst = [self._return_iou(phi) for phi in centered_phi_lst]
-        new_max_iou = np.max(iou_lst)
-
-        # old overlap
-        phi = self.state['PF'][:, :, 0] - self.cfg.shift_pf
-        centered_phi_lst = []
-        shifted_phi_lst = self._translate_half_box(phi)
-        for shifted_phi in shifted_phi_lst:
-            translated_to_center_lst = self._translate_to_the_center(
-                shifted_phi,
-            )
-            for phi in translated_to_center_lst:
-                centered_phi_lst.append(phi)
-        iou_lst = [self._return_iou(phi) for phi in centered_phi_lst]
-        old_max_iou = np.max(iou_lst)
-
-        reward = new_max_iou - old_max_iou
-
+        # Take the Fourier transform
+        fourier_transform = np.abs(np.fft.fft2(new_state['PF'][:, :, 0]))
+        # find the standard deviation and mean of the Fourier transform
+        std = np.std(fourier_transform)
+        mean = np.mean(fourier_transform)
+        normalized_fourier_transform = (fourier_transform - mean) / std
+        # calculate the correlation between the normalized Fourier transform of the desired PF and
+        # the normalized Fourier transform of the current PF
+        correlation = float(
+            np.mean(
+                normalized_fourier_transform * self._return_desired_pf_fourier_transform(),
+            ),
+        )
+        reward = correlation
+        assert -1.0 <= correlation <= 1.0, f"correlation between the desired PF's FFT magnitude " \
+                                           f"and the current PF's FFT magnitude is {correlation}," \
+                                           f' it should be between -1 and 1.'
         # energy cost
         degrees_above_room_t = (self.cfg.minimum_temperature - ROOM_TEMPERATURE) / (
             self.cfg.maximum_temperature - self.cfg.minimum_temperature
@@ -389,100 +396,6 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         reward -= energy_cost
 
         return reward, energy_cost
-
-    def _translate_half_box(self, phase_field):
-        """
-        Translate the PF half box in direction of x and y, and x-and-y.
-
-        :param phase_field: the phase field
-        :return: a list consisting of the original pf and the shifted ones.
-        """
-        current_pf_0 = phase_field
-        current_pf_1 = np.roll(
-            current_pf_0, int(
-                self.cfg.dimension / 2.0,
-            ), axis=0,
-        )
-        current_pf_2 = np.roll(
-            current_pf_0, int(
-                self.cfg.dimension / 2.0,
-            ), axis=1,
-        )
-        current_pf_3 = np.roll(
-            current_pf_2, int(
-                self.cfg.dimension / 2.0,
-            ), axis=0,
-        )
-        return [current_pf_0, current_pf_1, current_pf_2, current_pf_3]
-
-    def _translate_to_the_center(self, phase_field: np.ndarray) -> list:
-        """Shifts the image such that the center of mass of the phase 1 is at
-        the middle of the image.
-
-        This shift is applied to (half box) translated versions of the original
-         PF.
-
-        :param phase_field: the original PF
-        :return: a list of PFs with their center of mass shifted to
-        """
-        epsilon = 1e-5
-        x_cm = 0
-        y_cm = 0
-        for i in range(self.cfg.dimension):
-            for j in range(self.cfg.dimension):
-                x_cm += j * phase_field[i, j]
-                y_cm += i * phase_field[i, j]
-        if np.sum(phase_field) > epsilon:
-            x_cm = x_cm / np.sum(phase_field)
-            y_cm = y_cm / np.sum(phase_field)
-        else:
-            x_cm = self.cfg.dimension / 2.0
-            y_cm = self.cfg.dimension / 2.0
-
-        shift_x = int(self.cfg.dimension / 2.0 - x_cm)
-        shift_y = int(self.cfg.dimension / 2.0 - y_cm)
-        current_pf_0 = np.roll(phase_field, shift=shift_x, axis=1)
-        current_pf_0 = np.roll(current_pf_0, shift=shift_y, axis=0)
-
-        current_pf_1 = np.roll(
-            current_pf_0, int(
-                self.cfg.dimension / 2.0,
-            ), axis=0,
-        )
-        current_pf_2 = np.roll(
-            current_pf_0, int(
-                self.cfg.dimension / 2.0,
-            ), axis=1,
-        )
-        current_pf_3 = np.roll(
-            current_pf_2, int(
-                self.cfg.dimension / 2.0,
-            ), axis=0,
-        )
-
-        return [current_pf_0, current_pf_1, current_pf_2, current_pf_3]
-
-    def _return_iou(self, image: np.ndarray) -> float:
-        """
-        Returns the (modified) overlap of image and the self.desired_pf.
-        """
-        desired_pf = self._not_shifted_desired_pf
-        corrected_overlap = 3 * desired_pf * image - desired_pf - image
-        corrected_overlap = np.sum(corrected_overlap)
-
-        vmax_overlap = np.sum(desired_pf)  # true estimate
-        vmin_overlap = -1.0 * vmax_overlap  # estimate
-
-        corrected_overlap = (
-            vmin_overlap
-            if corrected_overlap < vmin_overlap else corrected_overlap
-        )
-        corrected_overlap = corrected_overlap / \
-            vmax_overlap  # in range [-1, 1]
-
-        corrected_overlap += 1  # in range [0, 2]
-
-        return corrected_overlap
 
     def _set_pf(self, phase_field: np.ndarray) -> dict:
         """
