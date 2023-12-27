@@ -25,7 +25,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 pytest
         conda env create -f environment.yaml
-        conda activate furnace
+        conda init
     - name: Test with pytest
       run: |
         pytest
