@@ -88,8 +88,19 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         Creates a new instant of the Furnace environment
 
         Args:
-            env_config: a dictionary with the configuration of the environment. See FurnaceConfig
-            for more details.
+            env_config: a dictionary with the configuration of the environment.
+                The dictionary includes all the needed configurations, including:
+                horizon: the length of the experiment \
+                dimension: the spatial length of the domain, i.e. the number of pixels
+                minimum temperature: min temperature of the furnace (in C)
+                maximum temperature: max temperature of the furnace (in C)
+                desired_volume_fraction: the volume fraction of the desired PF which
+                is circular temperature change per step: self-explanatory
+                number of PF updates per step: self-explanatory
+                gamma: the coefficient for calculation of the interface energy
+                termination_change_criterion: stop the episode if the change in PF is
+                smaller that this criterion. To disable this criterion set it to 0.0.
+                verbose -- self explanatory
         """
         super().__init__()
         if env_config is None:
