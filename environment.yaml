@@ -1,3 +1,4 @@
+name: furnace
 channels:
   - defaults
   - conda-forge  # Additional channel, you can add more if needed
