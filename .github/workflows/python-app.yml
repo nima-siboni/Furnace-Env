@@ -29,6 +29,8 @@ jobs:
 
       - name: Activate conda environment
         run: |
+          conda info --envs
+          source $HOME/miniconda/etc/profile.d/conda.sh
           conda activate furnace
 
       - name: Test with pytest
