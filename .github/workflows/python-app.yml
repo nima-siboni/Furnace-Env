@@ -19,8 +19,11 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Initialize Conda
+      - name: Install Miniconda
         run: |
+          wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+          bash miniconda.sh -b -p $HOME/miniconda
+          source $HOME/miniconda/etc/profile.d/conda.sh
           conda init bash
 
       - name: Create conda environment
@@ -29,12 +32,9 @@ jobs:
 
       - name: Activate conda environment
         run: |
-          conda info --envs
-          source /usr/share/miniconda/etc/profile.d/conda.sh
+          source $HOME/miniconda/etc/profile.d/conda.sh
           conda activate furnace
 
       - name: Test with pytest
         run: |
-          which pytest
-          pip install pytest
           pytest
