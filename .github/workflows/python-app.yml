@@ -26,12 +26,12 @@ jobs:
       - name: Create conda environment
         run: |
           conda env create --file environment.yaml
-
-      - name: Activate conda environment
-        run: |
           conda info --envs
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate furnace
-          which pytest
-          pip install pytest
+          pip install -e .
+      - name: Activate conda environment
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate furnace
           pytest
