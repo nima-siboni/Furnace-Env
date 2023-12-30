@@ -32,9 +32,6 @@ jobs:
           conda info --envs
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate furnace
-
-      - name: Test with pytest
-        run: |
           which pytest
           pip install pytest
           pytest
