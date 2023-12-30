@@ -48,6 +48,7 @@ def Calc_dfdPhi(
     Temperature: float,
     G_list: list,
     Tmax: float = 1000.0,
+    Tmin: float = 100.0,
 ):
     """
     Calculates the Derivative of the Gibbs energy with respect to the order
@@ -57,10 +58,14 @@ def Calc_dfdPhi(
     :param Temperature: the temperature (in C)
     :param G_list: the list of G values (in which unit?)
     :param Tmax: The maximum temperature (in C)
+    :param Tmin: The minimum temperature (in C)
     :return: the derivative of the Gibbs energy with respect to the order
     parameter
+
+    Args:
+        Tmin:
     """
-    G1 = G_list[0] * (Temperature / Tmax)
+    G1 = G_list[0] * (Temperature - Tmin) / (Tmax - Tmin)
     G2 = G_list[1] - G1
     c = 50
     d = 0
@@ -141,7 +146,11 @@ def Calc_Force_AC(
         T_max=T_max,
         T_min=T_min,
     )
-    return Mobility * (2 * Kappa * Calc_Del2(Phi) - Calc_dfdPhi(Phi, Temperature, G_list, T_max))
+    return Mobility * (
+        2 * Kappa * Calc_Del2(Phi) - Calc_dfdPhi(
+            Phi=Phi, Temperature=Temperature, G_list=G_list, Tmax=T_max, Tmin=T_min,
+        )
+    )
 
 
 def Update_PF(
