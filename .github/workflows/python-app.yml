@@ -22,15 +22,14 @@ jobs:
       - name: Initialize Conda
         run: |
           conda init bash
-
-      - name: Create conda environment
+      - name: Create conda environment and install dependencies
         run: |
           conda env create --file environment.yaml
           conda info --envs
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate furnace
           pip install -e .
-      - name: Activate conda environment
+      - name: Activate conda environment and run tests
         run: |
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate furnace
