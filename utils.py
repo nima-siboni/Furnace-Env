@@ -10,8 +10,8 @@ class FurnaceConfig(BaseModel):  # pylint: disable=too-few-public-methods
     """A class for furnace config."""
     horizon: int  # time horizon of the environment
     dimension: int  # dimensions of the environment's box
-    minimum_temperature: float  # minimum temperature of the environment
-    maximum_temperature: float  # maximum temperature of the environment
+    minimum_temperature: float  # minimum temperature of the environment in C
+    maximum_temperature: float  # maximum temperature of the environment in C
     desired_volume_fraction: float  # desired volume fraction
     temperature_change_per_step: float  # temperature change per step
     number_of_pf_updates_per_step: int  # number of phase field updates per step
@@ -29,7 +29,7 @@ class FurnaceConfig(BaseModel):  # pylint: disable=too-few-public-methods
     use_stop_action: bool  # if true, the agent can stop the furnace
     # energy cost per step per degree above the room temperature
     energy_cost_per_step: float
-    room_temperature: Optional[float] = 22.0  # room temperature
+    room_temperature: Optional[float] = 22.0  # room temperature in C
     # if true, the environment prints some information
     verbose: Optional[bool] = False
 
