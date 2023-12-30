@@ -1,0 +1,36 @@
+name: Python application
+
+on:
+  push
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.10"
+
+      - name: Initialize Conda
+        run: |
+          conda init bash
+      - name: Create conda environment and install dependencies
+        run: |
+          conda env create --file environment.yaml
+          conda info --envs
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate furnace
+          pip install -e .
+      - name: Activate conda environment and run tests
+        run: |
+          source /usr/share/miniconda/etc/profile.d/conda.sh
+          conda activate furnace
+          pytest
