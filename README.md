@@ -1,3 +1,4 @@
+[![Python application](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml/badge.svg)](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml)
 # A Furnace Environment
 A furnace environment compatible with OpenAI Gym is developed here.
 
