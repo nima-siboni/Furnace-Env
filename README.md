@@ -1,37 +1,53 @@
 [![Python application](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml/badge.svg)](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml)
 # A Furnace Environment
-A furnace environment compatible with OpenAI Gym is developed here.
+A furnace environment compatible with Gymnasium is developed here.
 
 ## Introduction to ```Furnace```
 
-The environment designed to experiment with heat treatment in material science. The physics behind the environment is a 2D binary Allen-Cahn phase field model.
-     
+The environment is designed to experiment with heat treatment in material science. The physics behind the environment is a 2D binary Allen-Cahn phase field model.
+
 ### State Space
 The state includes:
-* Timestep: a scalar indicating the number of steps up to now,
-* Temperature: the current temperature,
-* Phase Field: 2D field.
-Starting State: timestep is set to zero, temperature is set at the middle of the admissible range, and the PF at each point is set randomly to a value around 0.5 with a given tolerance.
-              
-         ![](./statics/sample.png)
+* Timestep: scaled number of taken steps where the scaling factor is `horizon`,
+* Temperature: the linearly transformed temperature, such that it is 0 at `minimum_temperature` and 1 at `maximum_temperature`,
+* Phase Field: 2D field, where the values are by definition between 0 and 1.
+Starting State: timestep is set to zero, temperature is set at the middle of the admissible range, and the PF at each point is set randomly to a value around 0.5 with a given tolerance.
+
+![](./statics/sample.png)
 ### Action Space
 The actions are for temperature regulation or process termination:
 
-* Action 0: reduce the temperature
-* Action 1: no change the temperature
-* Action 2: increase the temperature
-* Action 3: stop the process
+* Action 0: reduce the temperature,
+* Action 1: no change the temperature,
+* Action 2: increase the temperature,
+* Action 3: stop the process
 
+The changes in the temperate are determined by the parameter `temperature_change_per_step` which is in Celsius. The temperature is bounded between `minimum_temperature` and `maximum_temperature`.
 ### Reward
-The reward at each step shows the change between the "similarity" measured at the previous and measured at the current state. The similarity measure quantifies the similarity of the current PF with the target PF (which is a circular domain of phase 1 with the inputed total volume fraction). Both PFs are treated as images and the similarity is a modification of Intersection over Union (IoU).
+The reward at each step has two components:
+* one component is related to the energy cost of the process,
+* the other component is related to how close we are to the desired microstructure.
+
+The first contribution is easy to calculate: we approximate the cost of running the furnace to be proportional to
+the difference between the temperature of the furnace and the ambient temperature. The proportionality factor is `energy_cost_per_step` which is in units of $/s/C.
+
+Calculation of the second contribution is a bit more evolved. We first define a quantity called "similarity";
+it measures the similarity  the current PF with the target PF (which is a circular domain of phase 1 which covers `desired_volume_fraction` of the whole box).
+Using this similarity, we define a reward function to be the change in the "similarity" (to the target image) between the previous and the current state.
+
+The similarity between two images are defined as the correlation between the absolute values of the
+fourier transforms of the two images:
+
+$E=mc^2$
+
 
 ### Termination
 The process is terminated under the following conditions which are all configurable (see configuration subsection):
 
-* Reach the maximum number of allowed steps,
-* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored).
-* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds.
-* If the action 3 is chosen.
+* Reach the maximum number of allowed steps,
+* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored).
+* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds.
+* If the action 3 is chosen.
 
 ## How to use it?
 ### Installation
@@ -78,23 +94,22 @@ env.reset()
 from furnace import Furnace
 
 env_config = {"horizon": 2100,
-              "dimension": 128,
-              "minimum temperature": 100,
-              "maximum temperature": 1000,
+              "dimension": 120,
+              "minimum_temperature": 100,
+              "maximum_temperature": 1000,
               "desired_volume_fraction": 0.2,
-              "temperature change per step": 60,
-              "number of PF updates per step": 100,
+              "temperature_change_per_step": 60,
+              "number_of_pf_updates_per_step": 100,
               "gamma": 1000,
-              "termination_change_criterion": 0,
-              "termination_temperature_criterion": "False",
+              "termination_change_criterion": 0.0,
+              "use_termination_temperature_criterion": False,
               "mobility_type": "exp",
-              "g_list": "1.0, 1.0",
+              "g_list": [1.0, 1.0],
               "shift_pf": -0.5,
               "initial_pf_variation": 0.01,
-              "stop_action": "True",
+              "use_stop_action": True,
               "energy_cost_per_step": 0.0,
-              "verbose": "False"
-              }
+              "verbose": False}
 env = Furnace(env_config=env_config)
 env.reset()
 ```
