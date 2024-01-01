@@ -1,3 +1,4 @@
+"""Setup file for Furnace."""
 from __future__ import annotations
 
 from setuptools import find_packages
