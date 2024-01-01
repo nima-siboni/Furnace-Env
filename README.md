@@ -1,4 +1,4 @@
-![pylint]()  [![Python application](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml/badge.svg)](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml)
+[![linting: pylint](https://img.shields.io/badge/linting-pylint-yellowgreen)](https://github.com/pylint-dev/pylint) [![Python application](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml/badge.svg)](https://github.com/nima-siboni/Furnace-Env/actions/workflows/python-app.yml)
 # A Furnace Environment
 A furnace environment compatible with Gymnasium is developed here.
 

@@ -34,6 +34,3 @@ jobs:
           source /usr/share/miniconda/etc/profile.d/conda.sh
           conda activate furnace
           pytest
-
-      - name: PyLint with dynamic badge
-        uses: Silleellie/pylint-github-action@v1

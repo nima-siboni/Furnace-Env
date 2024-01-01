@@ -1,0 +1,19 @@
+{
+  "horizon": 2100,
+  "dimension": 120,
+  "minimum_temperature": 100,
+  "maximum_temperature": 1000,
+  "desired_volume_fraction": 0.2,
+  "temperature_change_per_step": 60,
+  "number_of_pf_updates_per_step": 100,
+  "gamma": 1000,
+  "termination_change_criterion": 0.0,
+  "use_termination_temperature_criterion": false,
+  "mobility_type": "exp",
+  "g_list": [1.0, 1.0],
+  "shift_pf": -0.5,
+  "initial_pf_variation": 0.01,
+  "use_stop_action": true,
+  "energy_cost_per_step": 0.0,
+  "verbose": false
+}
