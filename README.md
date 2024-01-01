@@ -46,21 +46,24 @@ $\rho(A, B) = \frac{\text{cov}(A, B)}{\sigma_A \sigma_B}$,
 
 where $\text{cov}$ is the covariance and $\sigma$ is the standard deviation. Note that for calculation
 of the covariance and standard deviation we treat each pixel as a variable and the whole image is merely a collection of these variables.
-In other words, one can consider that we flatten the images and treat them as vectors of variables.
+In other words, one can consider that we flatten the images and treat them as series of variables for
+the calculation of the covariance and standard deviation.
 
 ### Termination
 The process is terminated under the following conditions which are all configurable (see configuration subsection):
 
-* Reach the maximum number of allowed steps,
-* The change in dphi is smaller than a value (if the give value is 0.0 this condition is effectively ignored).
-* The temperature is out of range; this condition is active only if termination_temperature_criterion = True. In the case where the parameter is False the temperature is set to the corresponding boundary value if it gets out of bounds.
-* If the action 3 is chosen.
+* The change in phase field is smaller than a given threshold value, `termination_change_criterion` (if this config is not provided, this condition is ignored).
+* The temperature is out of range; this condition is active only if `use_termination_temperature_criterion` is set to `True`.
+In the case where this parameter is set to `False` if the temperature is out of range it is set to the boundary value and the process continues.
+* If the action 3 is chosen. This action is only active if `use_stop_action` is set to `True`, otherwise there is no action 3 (only actions 0, 1, and 2 are available).
 
+### Truncation
+* Reach the maximum number of allowed steps, i.e. `horizon`.
 ## How to use it?
 ### Installation
-* Update your pip,
+* Update your conda
 ```commandline
-pip install --upgrade pip
+conda update conda
 ```
 * Clone the repo and enter the code's directory:
 ```commandline
@@ -71,7 +74,7 @@ cd furnace_env
 ```commandline
 conda env create -f environment.yaml
 ```
-* Finally install the "Furnace" package:
+* Finally install the "Furnace" package in your conda environment:
 ```commandline
 pip install -e .
 ```
@@ -91,7 +94,7 @@ env.reset()
 import json  # for reading the config dict from a config file.
 from furnace import Furnace
 
-env_config = json.load(open('./env_config.cfg'))
+env_config = json.load(open('env_config.json'))
 env = Furnace(env_config=env_config)
 env.reset()
 ```
@@ -124,21 +127,19 @@ env.reset()
 ## Configuring ```Furnace```
 Important configuration parameters for the environment are the followings:
 
-* ```N```: the maximum number of steps
-* ```L```: the spatial dimension of the domain
-* ```minimum temperature```: minimum temperature (in C),
-* ```maximum temperature```: maximum temperature (in C),
+* ```horizon```: the maximum number of steps
+* ```dimension```: the spatial dimension of the domain
+* ```minimum_temperature```: minimum temperature (in C),
+* ```maximum_temperature```: maximum temperature (in C),
 * ```desired_volume_fraction```: the target volume fraction of phase 1; the target PF is a circle with this volume fraction,
-* ```temperature change per step```: the temperature change in case of actions 0 and 2,
-* ```number of PF updates per step```: the number of PF updates for each environment step,
+* ```temperature_change_per_step```: the temperature change in case of actions 0 and 2,
+* ```number_of_pf_updates_per_step```: the number of PF updates for each environment step,
 * ```termination_change_criterion```: if the (absolute) PF change is smaller than this value the process is terminated; to disable  this condition set it to zero,
-* ```termination_temperature_criterion```: whether to terminate the process when the agent brings the temperature out of the [Tmin, Tmax] range; setting it to False keeps the temperature at the boundary value and does not terminate the process,
-* ```stop_action```: whether to have the termination action or not,
+* ```use_termination_temperature_criterion```: whether to terminate the process when the agent brings the temperature out of the [Tmin, Tmax] range; setting it to False keeps the temperature at the boundary value and does not terminate the process,
+* ```use_stop_action```: whether to have the termination action or not,
 * ```energy_cost_per_step```: a factor which is multiplied by the difference between the temperature of the furnace and the temperature of the ambient; the larger this value the more expensive would be to run the furnace at higher temperatures; to remove the energy cost from optimization set this value to 0.
 * ```mobility_type```: "const", "exp", or "linear"; determines how the mobility changes with temperature
 * ```gamma```: a factor which is multiplied by the interface energy (just for reporting),
-* ```initial_PF_variation```: the variation of the average PF around 0.5 at reset,
-* ```G_list```: values related to the relative stability of different phases, e.g. "1.0, 1.0",
-* ```shift_PF```: the initial shift of PF values, for easier learning set it to -0.5,
-
-Note that logical conditions and lists are inputed as strings with double quatations, like "False" (not False), and "1.0, 2.0" (not [1.0, 2.0]). Sooorrry!
+* ```initial_pf_variation```: the variation of the average PF around 0.5 at reset,
+* ```g_list```: values related to the relative stability of different phases, e.g. "1.0, 1.0",
+* ```shift_pf```: the initial shift of PF values, for easier learning set it to -0.5,

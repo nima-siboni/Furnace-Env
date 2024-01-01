@@ -17,8 +17,8 @@ class FurnaceConfig(BaseModel):  # pylint: disable=too-few-public-methods
     number_of_pf_updates_per_step: int  # number of phase field updates per step
     gamma: float  # interface energy constant
     # termination pf change criterion, if the change
+    # is less than this value, the episode terminates. If None, this criterion is not used.
     termination_change_criterion: Optional[float]
-    # is less than this value, the episode terminates
     # if true, the episode terminates if the temperature
     use_termination_temperature_criterion: bool
     # goes out of the range [minimum_temperature, maximum_temperature]
