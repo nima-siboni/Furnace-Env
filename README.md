@@ -38,8 +38,15 @@ Using this similarity, we define a reward function to be the change in the "simi
 The similarity between two images are defined as the correlation between the absolute values of the
 fourier transforms of the two images:
 
-$E=mc^2$
+$\text{Sim}(A, B) = \rho \left( \left| \text{FFT2}(A) \right|, \left| \text{FFT2}( B ) \right| \right)$,
 
+where $A$ and $B$ are the two images, $\text{FFT2}$ is the 2D (fast) fourier transform, and $\rho$ is the correlation function:
+
+$\rho(A, B) = \frac{\text{cov}(A, B)}{\sigma_A \sigma_B}$,
+
+where $\text{cov}$ is the covariance and $\sigma$ is the standard deviation. Note that for calculation
+of the covariance and standard deviation we treat each pixel as a variable and the whole image is merely a collection of these variables.
+In other words, one can consider that we flatten the images and treat them as vectors of variables.
 
 ### Termination
 The process is terminated under the following conditions which are all configurable (see configuration subsection):
