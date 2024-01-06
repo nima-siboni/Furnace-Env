@@ -9,9 +9,9 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
+from furnace_utils import config_checks
+from furnace_utils import FurnaceConfig
 from phase_field_physics.dynamics import Update_PF
-from utils import config_checks
-from utils import FurnaceConfig
 
 
 def _load_default_config():

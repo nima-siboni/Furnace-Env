@@ -8,7 +8,7 @@ import gymnasium as gym
 import numpy as np
 
 from furnace import Furnace
-from utils import FurnaceConfig
+from furnace_utils import FurnaceConfig
 
 
 def test_init():
