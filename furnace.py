@@ -464,3 +464,13 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
     def steps(self, value: int):
         """Set steps."""
         self._steps = value
+
+    @property
+    def observation_space(self) -> spaces.Dict:
+        """Return the observation space."""
+        return self._observation_space
+
+    @property
+    def action_space(self) -> spaces.Discrete:
+        """Return the action space."""
+        return self._action_space
