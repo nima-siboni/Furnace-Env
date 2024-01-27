@@ -112,6 +112,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self._np_random = None
         self._steps = None
         self._steps_beyond_done = None
+        self._old_correlation = 0.0
 
     @staticmethod
     def _create_observation_space(config: FurnaceConfig) -> spaces.Dict:
@@ -196,6 +197,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         temperature is set to 0.50, better to set it to a value at which both phases are similarly
         stable.
         PF is set to random around 0.5 with tolerance of initial_pf_variation.
+        Sets the old_correlation to zero.
 
         Args:
             seed: the seed for the random number generator.
@@ -225,6 +227,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         }
 
         self.steps = 0
+        self._old_correlation = 0.0
         return self.state, {'g2': None, 'density': None, 'energy_cost': None}
 
     def step(self, action: int) -> tuple:
@@ -386,10 +389,14 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
                 normalized_fourier_transform * self._return_desired_pf_fourier_transform(),
             ),
         )
-        reward = correlation
+        # TODO: fix this, is negative correlation worse than 0 correlation? # pylint: disable=fixme
+        # value of self._old_correlation
+        correlation = 0 if correlation < 0 else correlation
         assert -1.0 <= correlation <= 1.0, f"correlation between the desired PF's FFT magnitude " \
                                            f"and the current PF's FFT magnitude is {correlation}," \
                                            f' it should be between -1 and 1.'
+        reward = correlation - self._old_correlation
+        self._old_correlation = correlation
         # energy cost
         energy_cost = self._calculate_energy_cost(new_state=new_state)
         reward -= energy_cost
