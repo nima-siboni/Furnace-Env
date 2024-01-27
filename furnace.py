@@ -113,6 +113,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         self._steps = None
         self._steps_beyond_done = None
         self._old_correlation = 0.0
+        self._desired_pf_fourier_transform = None
 
     @staticmethod
     def _create_observation_space(config: FurnaceConfig) -> spaces.Dict:
@@ -179,13 +180,17 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         Returns: the normalized FFT of the desired PF.
         """
-        fourier_transform = np.abs(np.fft.fft2(self._not_shifted_desired_pf))
-        # find the standard deviation and mean of the Fourier transform
-        std = np.std(fourier_transform)
-        mean = np.mean(fourier_transform)
-        # normalize the Fourier transform
-        fourier_transform_normalized = (fourier_transform - mean) / std
-        return fourier_transform_normalized
+        if self._desired_pf_fourier_transform is None:
+            fourier_transform = np.abs(
+                np.fft.fft2(self._not_shifted_desired_pf),
+            )
+            # find the standard deviation and mean of the Fourier transform
+            std = np.std(fourier_transform)
+            mean = np.mean(fourier_transform)
+            # normalize the Fourier transform
+            fourier_transform_normalized = (fourier_transform - mean) / std
+            self._desired_pf_fourier_transform = fourier_transform_normalized
+        return self._desired_pf_fourier_transform
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict[str, Any]] = None) -> \
             tuple[spaces.Dict, dict]:
@@ -228,6 +233,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         self.steps = 0
         self._old_correlation = 0.0
+        self._desired_pf_fourier_transform = None
         return self.state, {'g2': None, 'density': None, 'energy_cost': None}
 
     def step(self, action: int) -> tuple:
