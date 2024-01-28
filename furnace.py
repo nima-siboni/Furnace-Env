@@ -232,8 +232,10 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         }
 
         self.steps = 0
-        self._old_correlation = 0.0
         self._desired_pf_fourier_transform = None
+        # we set the old_correlation to the initial correlation.
+        self._old_correlation = 0.0
+        _, _, self._old_correlation = self._calculate_reward(self.state)
         return self.state, {'g2': None, 'density': None, 'energy_cost': None}
 
     def step(self, action: int) -> tuple:
@@ -267,7 +269,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         if self.steps == self.cfg.horizon:
             truncated = True
             terminated = False
-            reward, energy_cost = self._calculate_reward(new_state=obs)
+            reward, energy_cost, _ = self._calculate_reward(new_state=obs)
             self.state = obs
             return obs, reward, terminated, truncated, {}
         # --------------------------------------
@@ -280,7 +282,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         # stop the process, freeze!
         if action == 3:
             terminated = True
-            reward, energy_cost = self._calculate_reward(new_state=obs)
+            reward, energy_cost, _ = self._calculate_reward(new_state=obs)
             self.state = obs
             return obs, reward, terminated, truncated, {}
 
@@ -290,7 +292,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         if out_of_bound_temperature and self.cfg.use_termination_temperature_criterion:
             terminated = True
-            reward, energy_cost = self._calculate_reward(new_state=obs)
+            reward, energy_cost, _ = self._calculate_reward(new_state=obs)
             self.state = obs
             return obs, reward, terminated, truncated, {}
 
@@ -300,7 +302,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         if self.cfg.termination_change_criterion is not None:
             terminated = max_abs_dphi < self.cfg.termination_change_criterion
 
-        reward, energy_cost = self._calculate_reward(new_state=obs)
+        reward, energy_cost, _ = self._calculate_reward(new_state=obs)
 
         info = {'g2': g_2, 'density': density, 'energy_cost': energy_cost}
         self.state = obs
@@ -364,7 +366,7 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
 
         return temperature, out_of_bounds
 
-    def _calculate_reward(self, new_state: spaces.Dict) -> tuple[float, float]:
+    def _calculate_reward(self, new_state: spaces.Dict) -> tuple[float, float, float]:
         """
         Return the reward and energy cost.
 
@@ -382,8 +384,12 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
             reward: the reward.
             energy_cost: the energy cost; it is not used for training, but for analysis.
         """
-        # Take the Fourier transform
-        fourier_transform = np.abs(np.fft.fft2(new_state['PF'][:, :, 0]))
+        # Take the Fourier transform of (not shifted) new pf
+        fourier_transform = np.abs(
+            np.fft.fft2(
+                new_state['PF'][:, :, 0] - self.cfg.shift_pf,
+            ),
+        )
         # find the standard deviation and mean of the Fourier transform
         std = np.std(fourier_transform)
         mean = np.mean(fourier_transform)
@@ -401,13 +407,13 @@ class Furnace(gym.Env):  # pylint: disable=too-many-instance-attributes
         assert -1.0 <= correlation <= 1.0, f"correlation between the desired PF's FFT magnitude " \
                                            f"and the current PF's FFT magnitude is {correlation}," \
                                            f' it should be between -1 and 1.'
-        reward = correlation - self._old_correlation
+        geometric_reward = correlation - self._old_correlation
         self._old_correlation = correlation
         # energy cost
         energy_cost = self._calculate_energy_cost(new_state=new_state)
-        reward -= energy_cost
+        reward = geometric_reward - energy_cost
 
-        return reward, energy_cost
+        return reward, energy_cost, geometric_reward
 
     def _calculate_energy_cost(self, new_state: spaces.Dict) -> float:
         """
